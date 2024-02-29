@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+Output/
+SourceData/
+Sites_data/
+EvaluationRscripts/
+SourceData/
+Rscripts/Old/
+Rscripts/Evaluation/
