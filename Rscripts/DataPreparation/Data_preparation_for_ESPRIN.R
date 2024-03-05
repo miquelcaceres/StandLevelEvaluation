@@ -85,7 +85,7 @@ shrubData <- data.frame(
 # 4. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ESPRIN',
-  patchsize = 10000, herbCover = 10, herbHeight = 20,
+  patchsize = 10000, herbCover = 5, herbHeight = 10,
   Validation = 'global', Definitive = 'No'
 )
 
@@ -115,10 +115,20 @@ meteoDataSite <- env_data |>
 # plot_sf <- sf::st_sf(terrainData, coords_sf)
 # interpolated_data <- meteoland::interpolate_data(plot_sf, interpolator)
 # meteoDataInt <- interpolated_data$interpolated_data[[1]]
+# write.csv(meteoDataInt, file = 'SourceData/Tables/Rinconada/meteoDataInterpolated_2006.csv', row.names = FALSE)
+# interpolator_file <- EMFdatautils::download_emfdata(climate_base,
+#                                                     "Products/InterpolationData/Spain/Historic/calibrated/AEMET_37_daily_interpolator_2007.nc")
+# interpolator <- meteoland::read_interpolator(interpolator_file)
+# coords_sf <- sf::st_sfc(sf::st_point(c(-6.016667,40.60028)), crs = 4326)
+# plot_sf <- sf::st_sf(terrainData, coords_sf)
+# interpolated_data <- meteoland::interpolate_data(plot_sf, interpolator)
+# meteoDataInt <- interpolated_data$interpolated_data[[1]]
 # write.csv(meteoDataInt, file = 'SourceData/Tables/Rinconada/meteoDataInterpolated_2007.csv', row.names = FALSE)
-meteoDataInt <- read.csv(file = 'SourceData/Tables/Rinconada/meteoDataInterpolated_2007.csv')
+meteoDataInt2006 <- read.csv(file = 'SourceData/Tables/Rinconada/meteoDataInterpolated_2006.csv')
+meteoDataInt2007 <- read.csv(file = 'SourceData/Tables/Rinconada/meteoDataInterpolated_2007.csv')
+meteoDataInt <- rbind(meteoDataInt2006, meteoDataInt2007)
 meteoDataInt$dates <- as.Date(meteoDataInt$dates)
-# # CHeck
+# CHeck
 # ggplot()+
 #   geom_line(aes(x = dates, y=MaxTemperature), col="black", data = meteoDataInt)+
 #   geom_line(aes(x = dates, y=MaxTemperature), col="red", data = meteoDataSite)
@@ -145,12 +155,12 @@ meteoData <- rbind(meteoDataInt[!(meteoDataInt$dates %in% meteoDataSite$dates), 
 # coords_sf <- sf::st_sfc(sf::st_point(c(-6.016667,40.60028)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
 soilData <- data.frame(
-  widths = c(300, 700, 1000, 2500),
-  clay = c(19.10, 23.95, 24.50, 24.50),
-  sand = c(45.33333, 41.60000, 42.30000,42.30000),
-  om = c(4.0, 1.315000, 0.820000, 0),
-  bd = c(1.3, 1.48,1.51,1.560000),
-  rfc = c(21.00,24.85,60,85)
+  widths = c(250, 250, 500, 1000, 2500),
+  clay = c(19.10, 23.95, 23.95, 24.50, 24.50),
+  sand = c(45.33333, 41.60000, 41.60000, 42.30000,42.30000),
+  om = c(4.0, 2, 1.315000, 0.820000, 0),
+  bd = c(1.48, 1.48, 1.48,1.51,1.560000),
+  rfc = c(10, 21.00,24.85,60,85)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -240,7 +250,8 @@ measuredData <- swc_esprin %>%
 
 wpData <- read_xlsx("SourceData/Tables/Rinconada/ESP_RIN_WP.xlsx")
 wpData$dates = as.Date(wpData$dates)
-measuredData <- full_join(measuredData, wpData, by="dates")
+measuredData <- full_join(measuredData, wpData, by="dates")|>
+  dplyr::arrange(dates)
 names(measuredData)[5:9] = c(paste0("E_", QP_cohname),
                              paste0("PD_", QP_cohname),
                              paste0("PD_", QP_cohname, "_err"),

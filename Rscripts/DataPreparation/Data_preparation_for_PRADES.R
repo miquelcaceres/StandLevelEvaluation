@@ -73,7 +73,13 @@ summary(f, SpParamsMED)
 
 # 2. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info
-
+shrubData <- data.frame(
+  Species = numeric(0), 
+  Cover = numeric(0),
+  Height = numeric(0),
+  Z50 = numeric(0),
+  Z95 = numeric(0)
+)
 
 # 3. SEED DATA ------------------------------------------------------------
 # there is no seed info
