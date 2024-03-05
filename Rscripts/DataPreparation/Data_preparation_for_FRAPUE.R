@@ -21,7 +21,7 @@ QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
 BS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Buxus sempervirens"]
 
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -59,7 +59,15 @@ siteData <- data.frame(
             "10.1111/j.1365-2486.2009.01852.x")
 )
 
-# 1. TREE DATA ----------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 43.74139,
+  elevation = 270,
+  aspect = 0, # Flat
+  slope = 0 # Flat
+)
+
+# 3. TREE DATA ----------------------------------------------------------
 treeData <- data.frame(
   Species = "Quercus ilex",
   DBH = mean(plant_md[['pl_dbh']]),
@@ -70,7 +78,7 @@ treeData <- data.frame(
   LAI = 2.0
 )
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 shrubData <- data.frame(
   Species = "Buxus sempervirens",
   Cover = 13,
@@ -80,17 +88,18 @@ shrubData <- data.frame(
   LAI = 0.2
 )
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FRAPUE',
+  SpParamsName = "SpParamsMED",
   herbCover = 10, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )
 
-# 5. SOIL DATA ------------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
 # extracted from the paper (Limousin 2009) y adaptado como Prades:
 # "bulk density" de PRADES:
 soilData <- data.frame(
@@ -99,19 +108,14 @@ soilData <- data.frame(
   sand = c(26, 26, 26, 26), #14
   om = c(6, 3, 1, 1),
   bd = c(1.45, 1.45, 1.45, 1.45),
-  rfc = c(75, 75, 80, 90)
+  rfc = c(75, 75, 80, 90),
+  VG_theta_sat = rep(0.33, 4),
+  VG_theta_res = rep(0.008, 4)
 )
 sum(soil_waterExtractable(soil(soilData), model="VG", minPsi = -4))
 
-# 6. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 43.74139,
-  elevation = 270,
-  aspect = 0, # Flat
-  slope = 0 # Flat
-)
 
-# 7. METEO DATA -----------------------------------------------------------
+# 8. METEO DATA -----------------------------------------------------------
 meteoData <- pue_meteo |>
   rename(dates = DATE,
          MinTemperature = Tair_min,
@@ -147,7 +151,7 @@ meteoData<-meteoData[!is.na(meteoData$dates),]
 row.names(meteoData) <-meteoData$dates
 
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 QI_cohname = paste0("T1_", QI_index)
 BS_cohname = paste0("S1_", BS_index)
 qi <- 1
@@ -244,7 +248,7 @@ customParams$Gswmin[bs] <- 0.002
 customParams$Gs_slope[qi] <- (88.0 - 12.0)/(2.7 - 1);
 customParams$Gs_P50[qi] <- -1.0 + log(0.12/0.88)/(customParams$Gs_slope[qi]/25)
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # Agrego los datos de sapflow por día, sumo todos los árboles y luego multiplico
 # por LAI y divido por n = numero de arboles medidos
 # Para agregar por día el sapflow, al estar medido en dm3/dm2h y en timesteps
@@ -319,7 +323,7 @@ measuredData[as.character(wpData$Date), paste0("MD_", QI_cohname)] = wpData$MD
 measuredData[as.character(wpData$Date), paste0("MD_", QI_cohname, "_err")] = wpData$MD_err
 
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 evaluation_period <- seq(as.Date("2004-01-01"),as.Date("2006-12-31"), by="day")
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
 meteoData <- meteoData |> filter(dates %in% evaluation_period)
@@ -327,25 +331,15 @@ row.names(meteoData) <- NULL
 row.names(measuredData) <- NULL
 
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI',
-            'xylem_kmax',
-            'Gwmax'),
-  Remark = c('soil data from biblio',
-             'Optimization mode 2',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Supplied by authors',
-             'Modified arbitrarily to 0.4',
-             'Modified to 0.3')
+            'Vegetation'),
+  Remark = c('Adjusted theta_res and theta_sat',
+             'Using B. sempervirens as understory')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'FRAPUE')
 write.table(siteData, file = file.path(folder_name, 'FRAPUE_siteData.txt'),
             row.names = FALSE, sep = '\t')

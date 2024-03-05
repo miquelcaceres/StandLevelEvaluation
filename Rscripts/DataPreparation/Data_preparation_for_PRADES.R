@@ -13,7 +13,7 @@ sapf_data <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_sapf_data.csv')
 plant_md <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_plant_md.csv')
 
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -51,7 +51,15 @@ siteData <- data.frame(
             "10.1111/nph.12278")
 )
 
-# 1. TREE DATA ------------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 41.33,
+  elevation = 1018,
+  aspect = 8.53,
+  slope = 35
+)
+
+# 3. TREE DATA ------------------------------------------------------------
 QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
 PS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus sylvestris"]
 
@@ -71,7 +79,7 @@ vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
 vprofile_rootDistribution(f, SpParams = SpParamsMED)
 summary(f, SpParamsMED)
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info
 shrubData <- data.frame(
   Species = numeric(0), 
@@ -81,19 +89,20 @@ shrubData <- data.frame(
   Z95 = numeric(0)
 )
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'PRADES',
+  SpParamsName = "SpParamsMED",
   herbCover = 10, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )
 
 
-# 5. SOIL DATA ------------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
 # aumento la roca en la ultima capa 
 soilData <- data.frame(
   widths = c(300, 700, 1000, 2500),
@@ -105,15 +114,8 @@ soilData <- data.frame(
 )
 sum(soil_waterExtractable(soil(soilData, VG_PTF = "Toth"), model="VG", minPsi = -4))
 
-# 6. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 41.33,
-  elevation = 1018,
-  aspect = 8.53,
-  slope = 35
-)
 
-# 7. METEO DATA -----------------------------------------------------------
+# 8. METEO DATA -----------------------------------------------------------
 
 meteoData <- env_data %>%
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
@@ -133,7 +135,7 @@ meteoData <- env_data %>%
   as.data.frame()
 
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 PS_cohname = paste0("T1_", PS_index)
 QI_cohname = paste0("T2_", QI_index)
 ps <- 1
@@ -243,7 +245,7 @@ customParams$Gs_slope[ps] <- (88.0 - 12.0)/(2.14 - 1.36);
 customParams$Gs_P50[ps] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ps]/25)
 
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en mm3/mm2 s, y el timestep es 15 minutos, así que tenemos que
 # multiplicar por 15*60 segundos para los mm3/mm2 en el timestep, por el As2Al de cada árbol *100 (mm2 to cm2 sapwood area) y 
 # dividir entre 1000000 para tenerlo en L.
@@ -354,25 +356,19 @@ names(measuredData)[5:14] = c(paste0("E_",c(PS_cohname, QI_cohname)),
 row.names(measuredData) <- NULL
 
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 d = as.Date(meteoData$dates)
 meteoData <- meteoData[(d>="2011-01-01") & (d<"2011-12-31"),] #Select three years
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI'),
-  Remark = c('Provided by authors with modified rfc',
-             'Optimization mode 2',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Calculated by model')
+            'Vegetation'),
+  Remark = c('Additional rocky layer considered',
+             'Understory not considered')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'PRADES')
 write.table(siteData, file = file.path(folder_name, 'PRADES_siteData.txt'),
             row.names = FALSE, sep = '\t')

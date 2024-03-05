@@ -27,7 +27,7 @@ QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
 PL_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Phillyrea latifolia"]
 PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -65,8 +65,15 @@ siteData <- data.frame(
             "10.1016/j.agrformet.2021.108472")
 )
 
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 43.24,
+  elevation = 420,
+  aspect = 0, # Flat
+  slope = 0 # Flat
+)
 
-# 1. TREE DATA ----------------------------------------------------------
+# 3. TREE DATA ----------------------------------------------------------
 plant_md = plant_md[plant_md$espece %in% c("cv", "pa", "ph"),]
 plant_md$Ht = apply(plant_md[,c("ht2009","ht2011")],1, function(x) {mean(x,na.rm=T)})
 plant_md$DBH = apply(plant_md[,c("dbh2009","dbh2011")],1, function(x) {mean(x,na.rm=T)})
@@ -105,7 +112,7 @@ treeData$LAI <- species_LAI(f, SpParamsMED)
 treeData$LAI <- treeData$LAI*(2.7/sum(treeData$LAI)) ## CORRECT LAI = 2.7
 rm(f)
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 shrubData <- data.frame(
   Species = numeric(0), 
   Cover = numeric(0),
@@ -115,18 +122,19 @@ shrubData <- data.frame(
 )
 
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FONBLA',
+  SpParamsName = "SpParamsMED",
   herbCover = 10, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )
 
-# 5. METEO DATA -----------------------------------------------------------
+# 7. METEO DATA -----------------------------------------------------------
 env_data = rbind(env_data2008, env_data2009, env_data2010, env_data2011, env_data2012, env_data2013,
                  env_data2014, env_data2015, env_data2016, env_data2017, env_data2018)
 dates = env_data$date
@@ -152,7 +160,7 @@ meteoData <- data.frame(dates = dates,
 meteo_sel = complete.cases(meteoData)
 meteoData <- meteoData[meteo_sel,]
 
-# 6. SOIL DATA ------------------------------------------------------------
+# 8. SOIL DATA ------------------------------------------------------------
 # As Puechabon
 soilData <- data.frame(
   widths = c(300, 700, 1000, 2500),
@@ -160,23 +168,15 @@ soilData <- data.frame(
   sand = c(26, 26, 26, 26), #14
   om = c(6, 3, 1, 1),
   bd = c(1.45, 1.45, 1.45, 1.45),
-  rfc = c(50,65,90,95)
+  rfc = c(50,65,90,95),
+  VG_theta_sat = rep(0.5, 4),
+  VG_theta_res = rep(0.1, 4),
 )
 s=soil(soilData)
 # write.table(format(soilData,2), "D:/Recerca/Comunication/Docencia/Bagnuls2019/Datasets/Fontblanche_soil.txt", sep="\t", quote=FALSE)
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-
-# 7. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 43.24,
-  elevation = 420,
-  aspect = 0, # Flat
-  slope = 0 # Flat
-)
-
-
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 PL_cohname = paste0("T1_", PL_index)
 PH_cohname = paste0("T2_", PH_index)
 QI_cohname = paste0("T3_", QI_index)
@@ -286,7 +286,7 @@ customParams$Gs_slope[ph] <- (88.0 - 12.0)/(2.14 - 1.36);
 customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 measuredData<-data.frame(dates = dates, 
                          SWC = env_data$RE_TD/100, 
                          SWC.err = NA,
@@ -308,7 +308,7 @@ measuredData[as.character(sapf_data2014$doy), paste0("MD_", QI_cohname, "_err")]
 row.names(measuredData)<-NULL
 
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 d = as.Date(meteoData$dates)
 meteoData <- meteoData[(d>="2014-01-01") & (d<="2014-12-31"),] #Select years
@@ -316,7 +316,7 @@ measuredData <- measuredData[(d>="2014-01-01") & (d<="2014-12-31"),] #Select yea
 
 
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
             'Fine Roots Proportion',
@@ -333,8 +333,7 @@ remarks <- data.frame(
 )
 
 
-
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'FONBLA')
 
 write.table(siteData, file = file.path(folder_name, 'FONBLA_siteData.txt'),

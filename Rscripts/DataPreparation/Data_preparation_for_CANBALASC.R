@@ -20,7 +20,7 @@ PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
 QP_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus pubescens"]
 QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -59,8 +59,15 @@ siteData <- data.frame(
 )
 
 
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 41.43099,
+  elevation = 270,
+  aspect = 90,
+  slope = 0.86 # < 2%, calculado a partir de una pendiente del 1.5%
+)
 
-# 1. TREE DATA ----------------------------------------------------------
+# 3. TREE DATA ----------------------------------------------------------
 treeData <- data.frame(
   Species = c("Arbutus unedo", "Pinus halepensis", "Quercus pubescens", "Quercus ilex"), # A.unedo / P.halepensis / Q.pubescens / Q.ilex
   DBH = c(9.6, 33.7, 12, 11.9),
@@ -75,32 +82,34 @@ treeData$LAI <- species_LAI(f, SpParamsMED)
 treeData$LAI <- treeData$LAI*(3.2/sum(treeData$LAI)) ## CORRECT LAI = 3.2
 rm(f)
 
-# 2. SHRUB DATA -----------------------------------------------------------
-shrubData <- data.frame(
-  Species = numeric(0), 
-  Cover = numeric(0),
-  Height = numeric(0),
-  Z50 = numeric(0),
-  Z95 = numeric(0)
-)
+# 4. SHRUB DATA -----------------------------------------------------------
 # shrubData <- data.frame(
-#   Species = c(6, 52, 61, 68, 88), # Arbutus unedo, Phillyrea angustifolia, Pistacea lentiscus, Quercus ilex, Viburnum spp.
-#   Cover = c(4.83, 7.25, 13.5, 9.67, 9.67),
-#   Height = c(174, 153.33, 118.33, 78, 138.33),
-#   Z = c(1000, 1000, 1000, 1000, 1000)
+#   Species = numeric(0), 
+#   Cover = numeric(0),
+#   Height = numeric(0),
+#   Z50 = numeric(0),
+#   Z95 = numeric(0)
 # )
+shrubData <- data.frame(
+  Species = c("Arbutus unedo", "Phillyrea angustifolia", "Pistacia lentiscus", "Quercus ilex",  "Viburnum spp."), # Arbutus unedo, Phillyrea angustifolia, Pistacea lentiscus, Quercus ilex, Viburnum spp.
+  Cover = c(4.83, 7.25, 13.5, 9.67, 9.67),
+  Height = c(174, 153.33, 118.33, 78, 138.33),
+  Z50 = rep(NA, 5),
+  Z95 = rep(NA, 5)
+)
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'CANBALASC',
-  patchsize = 10000, herbCover = 10, herbHeight = 20,
+  SpParamsName = "SpParamsMED",
+  herbCover = 5, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )
 
-# 5. METEO DATA -----------------------------------------------------------
+# 7. METEO DATA -----------------------------------------------------------
 meteoData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
@@ -120,7 +129,7 @@ meteoData <- env_data |>
 meteoData <- meteoData[!is.na(meteoData$dates),] 
 
 
-# 6. SOIL DATA ------------------------------------------------------------
+# 8. SOIL DATA ------------------------------------------------------------
 # Obetnidos de los datos de Antoine
 # 
 # DESCRIPCIÓ DEL SÒL DE LA PARCELA PERMANENT D’ALZINAR DE CAN BALASC (COLLSEROLA)
@@ -142,15 +151,8 @@ soilData <- data.frame(
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-# 7. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 41.43099,
-  elevation = 270,
-  aspect = 90,
-  slope = 0.86 # < 2%, calculado a partir de una pendiente del 1.5%
-)
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 AU_cohname = paste0("T1_", AU_index)
 PH_cohname = paste0("T2_", PH_index)
 QP_cohname = paste0("T3_", QP_index)
@@ -161,7 +163,8 @@ ph <- 2
 qp <- 3
 qi<- 4
 customParams <- data.frame(
-  Species = c("Arbutus unedo", "Pinus halepensis", "Quercus pubescens", "Quercus ilex"),
+  Species = c("Arbutus unedo", "Pinus halepensis", "Quercus pubescens", "Quercus ilex",
+              "Phillyrea angustifolia", "Pistacia lentiscus", "Viburnum spp."),
   VCleaf_P12 = NA,
   VCleaf_P50 = NA,
   VCleaf_P88 = NA,
@@ -193,7 +196,7 @@ Al2As_sp = c(mean(10000/As2Al[c(10,11,13,14)]),
              mean(10000/As2Al[c(2,20,21)]), 
              mean(10000/As2Al[c(12,18:19)]),
              mean(10000/As2Al[c(4:9)]))
-customParams$Al2As = Al2As_sp
+customParams$Al2As[1:4] = Al2As_sp
 
 
 customParams$VCleaf_kmax[ph] <- 4.0
@@ -277,7 +280,7 @@ customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 #   LAI_expanded = c(0.1, 0.3, 0.3, 2.5)
 # )
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en mm3/mm2 s, y el timestep es 15 minutos, así que tenemos que
 # multiplicar por 15*60 segundos para los mm3/mm2 en el timestep, por el As2Al
 # de cada árbol *100 y dividir entre 100000 para tenerlo en L. Luego sumamos todo el día y luego
@@ -335,28 +338,22 @@ names(measuredData)[5:8] <-paste0("E_", c(AU_cohname, PH_cohname, QP_cohname, QI
 
 measuredData <- measuredData[!is.na(measuredData$dates),]
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 d = as.Date(meteoData$dates)
 meteoData <- meteoData[(d>="2011-01-01") & (d<="2012-12-31"),] #Select years
 d = as.Date(measuredData$dates)
 measuredData <- measuredData[(d>="2011-01-01") & (d<="2012-12-31"),] #Select years
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI'),
-  Remark = c('Soilgrids with rfc manually setted to increase it',
-             'Optimization mode 1',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Supplied by authors for tree cohorts')
+            'Vegetation'),
+  Remark = c('Soil description from local samples',
+             'Understory composed of multiple species')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'CANBALASC')
 
 write.table(siteData, file = file.path(folder_name, 'CANBALASC_siteData.txt'),

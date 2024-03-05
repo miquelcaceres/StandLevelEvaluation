@@ -19,7 +19,7 @@ swc_esprin <- readxl::read_xlsx('SourceData/Tables/Rinconada/ESP_RIN_SWC.xlsx')
 QP_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus pyrenaica"]
 
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -57,7 +57,16 @@ siteData <- data.frame(
             "10.1016/j.foreco.2008.03.004")
 )
 
-# 1. TREE DATA ----------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+# sacado de los metadatos de sapfluxnet
+terrainData <- data.frame(
+  latitude = 40.60028,
+  elevation = 1200,
+  aspect = 0, # North
+  slope = 10 # 
+)
+
+# 3. TREE DATA ----------------------------------------------------------
 treeData <- data.frame(
   Species = "Quercus pyrenaica",
   DBH = 11.7, # from paper
@@ -68,7 +77,7 @@ treeData <- data.frame(
   LAI = 3.4
 )
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 # The understorey is scarce, mainly constituted by scattered shrubs (Genista falcate and Pteridium aquilinum).
 shrubData <- data.frame(
   Species = numeric(0), 
@@ -78,18 +87,36 @@ shrubData <- data.frame(
   Z95 = numeric(0)
 )
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ESPRIN',
-  patchsize = 10000, herbCover = 5, herbHeight = 10,
-  Validation = 'global', Definitive = 'No'
+  SpParamsName = "SpParamsMED",
+  herbCover = 5, herbHeight = 10,
+  Validation = 'global', Definitive = 'Yes'
 )
 
-# 5. METEO DATA -----------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
+# coords_sf <- sf::st_sfc(sf::st_point(c(-6.016667,40.60028)), crs = 4326)
+# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
+soilData <- data.frame(
+  widths = c(250, 250, 500, 1000, 2500),
+  clay = c(19.10, 23.95, 23.95, 24.50, 24.50),
+  sand = c(45.33333, 41.60000, 41.60000, 42.30000,42.30000),
+  om = c(4.0, 2, 1.315000, 0.820000, 0),
+  bd = c(1.48, 1.48, 1.48,1.51,1.560000),
+  rfc = c(10, 21.00,24.85,60,85),
+  VG_theta_sat = rep(0.35, 5),
+  VG_theta_res = rep(0.03, 5)
+)
+s = soil(soilData, VG_PTF = "Toth")
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
+
+
+# 8. METEO DATA -----------------------------------------------------------
 meteoDataSite <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
@@ -151,30 +178,8 @@ meteoDataInt$dates <- as.Date(meteoDataInt$dates)
 meteoData <- rbind(meteoDataInt[!(meteoDataInt$dates %in% meteoDataSite$dates), names(meteoDataSite)], meteoDataSite) |>
   dplyr::arrange(dates)
 
-# 6. SOIL DATA ------------------------------------------------------------
-# coords_sf <- sf::st_sfc(sf::st_point(c(-6.016667,40.60028)), crs = 4326)
-# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
-soilData <- data.frame(
-  widths = c(250, 250, 500, 1000, 2500),
-  clay = c(19.10, 23.95, 23.95, 24.50, 24.50),
-  sand = c(45.33333, 41.60000, 41.60000, 42.30000,42.30000),
-  om = c(4.0, 2, 1.315000, 0.820000, 0),
-  bd = c(1.48, 1.48, 1.48,1.51,1.560000),
-  rfc = c(10, 21.00,24.85,60,85)
-)
-s = soil(soilData, VG_PTF = "Toth")
-sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-# 7. TERRAIN DATA ---------------------------------------------------------
-# sacado de los metadatos de sapfluxnet
-terrainData <- data.frame(
-  latitude = 40.60028,
-  elevation = 1200,
-  aspect = 0, # North
-  slope = 10 # 
-)
-
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 QP_cohname = paste0("T1_", QP_index)
 qp<- 1
 customParams <- data.frame(
@@ -216,7 +221,7 @@ customParams$Gswmax <- 0.300
 customParams$Gswmin <- 0.003
 # customParams$Gsw_AC_slope <- 8
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en dm3/h, y el timestep es 60 minutos, ya tenemos los L por hora.
 # Sumamos todo el día y luego multiplicamos por le numero total de arboles y dividimos por los arboles medidos
 # y el area de la parcela
@@ -258,29 +263,23 @@ names(measuredData)[5:9] = c(paste0("E_", QP_cohname),
                              paste0("MD_", QP_cohname),
                              paste0("MD_", QP_cohname, "_err"))
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI',
-            'kmax'),
-  Remark = c('Mix supplied by authors and soilGrids',
-             'Calibration by E tot',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Calculated by model',
-             'Q. pyrenaica modifed to mimic Q. pubescens')
+            'Vegetation',
+            'Weather'),
+  Remark = c('Taken from SoilGrids, with modification of theta_sat and theta_res',
+             'Understory not considered',
+             'Available weather complemented with interpolation')
 )
 
 
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'ESPRIN')
 
 write.table(siteData, file = file.path(folder_name, 'ESPRIN_siteData.txt'),

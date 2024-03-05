@@ -97,6 +97,7 @@ summary(f, SpParamsMED)
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'QVALLCEBRE',
+  SpParamsName = "SpParamsMED",
   herbCover = 5, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )

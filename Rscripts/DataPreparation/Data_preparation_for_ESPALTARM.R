@@ -20,7 +20,7 @@ PN_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus nigra"]
 QF_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus faginea"]
 QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -58,7 +58,15 @@ siteData <- data.frame(
             "10.1007/S11258-014-0351-x")
 )
 
-# 1. TREE DATA ----------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 40.7769,
+  elevation = 1079,
+  aspect = 270, # West
+  slope = 25.64
+)
+
+# 3. TREE DATA ----------------------------------------------------------
 # dbh por especies
 dbh_sp <- plant_md |>
   group_by(pl_species) |>
@@ -81,7 +89,7 @@ treeData$LAI <- species_LAI(f, SpParamsMED)
 treeData$LAI <- treeData$LAI*(1.09/sum(treeData$LAI)) ## CORRECT LAI = 1.09
 
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 shrubData <- data.frame(
   Species = numeric(0), 
   Cover = numeric(0),
@@ -90,18 +98,19 @@ shrubData <- data.frame(
   Z95 = numeric(0)
 )
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ESPALTARM',
-  patchsize = 10000, herbCover = 10, herbHeight = 20,
+  SpParamsName = "SpParamsMED",
+  herbCover = 10, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )
 
-# 5. METEO DATA -----------------------------------------------------------
+# 7. METEO DATA -----------------------------------------------------------
 meteoData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
@@ -117,7 +126,7 @@ meteoData <- env_data |>
   dplyr::mutate(Radiation = Radiation*3600*24/1000000) 
 meteoData<- meteoData[!is.infinite(meteoData$MinTemperature),]
 
-# 6. SOIL DATA ------------------------------------------------------------
+# 8. SOIL DATA ------------------------------------------------------------
 # No hay descripción de suelo, ni porcentajes ni bulk ni nada. SoilGrids 
 # coords_sf <- sf::st_sfc(sf::st_point(c(-2.3283,40.7769)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
@@ -133,15 +142,8 @@ soilData <- data.frame(
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-# 7. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 40.7769,
-  elevation = 1079,
-  aspect = 270, # West
-  slope = 25.64
-)
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 PN_cohname = paste0("T1_", PN_index)
 QF_cohname = paste0("T2_", QF_index)
 QI_cohname = paste0("T3_", QI_index)
@@ -303,7 +305,7 @@ customParams$Gs_P50[pn] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[pn]/25)
 #   LAI_expanded = LAI
 # )
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en Kg/h, y el timestep es 30 minutos, así que si dividimos
 # entre 2 ya tenemos los L en esos 30 min. 
 transp_data_temp <- sapf_data |>
@@ -391,7 +393,7 @@ names(measuredData)[5:19] = c(paste0("E_",c(PN_cohname, QF_cohname, QI_cohname))
                               paste0("MD_", QF_cohname, "_err"))
 
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 d = as.Date(meteoData$dates)
 meteoData <- meteoData[(d>="2012-01-17") & (d<="2013-12-31"),] #Select years
@@ -399,23 +401,15 @@ d = as.Date(measuredData$dates)
 measuredData <- measuredData[(d>="2012-01-17") & (d<="2013-12-31"),] #Select years
 
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI',
-            'kmax'),
-  Remark = c('Soilgrids complete',
-             'Optimization mode 2',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Calculated by model',
-             'Q. faginea modifed to mimic Q. pubescens')
+            'Vegetation'),
+  Remark = c('Taken from Soilgrids',
+             'Understory not considered')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'ESPALTARM')
 
 write.table(siteData, file = file.path(folder_name, 'ESPALTARM_siteData.txt'),

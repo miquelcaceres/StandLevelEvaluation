@@ -100,7 +100,8 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'RONDA',
-  patchsize = 10000, herbCover = 10, herbHeight = 20,
+  SpParamsName = "SpParamsMED",
+  herbCover = 10, herbHeight = 20,
   Validation = 'global', Definitive = 'No'
 )
 
@@ -161,7 +162,9 @@ soilData <- data.frame(
   sand = c(44.46667, 45.20000, 45.70000,45.70000),
   om = c(3.97, 1.18, 0.65, 0),
   bd = c(1.276667, 1.420000,1.480000,1.480000),
-  rfc = c(19.46667,22.05000,60,85)
+  rfc = c(19.46667,40,80,90),
+  VG_theta_sat = rep(0.55, 4),
+  VG_theta_res = rep(0.1, 4)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -255,17 +258,11 @@ names(measuredData)[4:5] = c(paste0("E_", AP_cohname),
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI',
-            'kmax'),
-  Remark = c('Mix supplied by authors and soilGrids',
-             'Calibration by E tot',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Calculated by model',
-             'Q. pyrenaica modifed to mimic Q. pubescens')
+            'Vegetation',
+            'Weather'),
+  Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
+             'Understory not considered',
+             'Complemented with interpolated weather')
 )
 
 

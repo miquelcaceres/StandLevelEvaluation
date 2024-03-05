@@ -17,7 +17,7 @@ plant_md <- read.csv('SourceData/Tables/Yatir/ISR_YAT_YAT_plant_md.csv')
 yat_meteo <- read.table("SourceData/Tables/Yatir/Yatir_Climate_ForSurEau_2010_2022.csv", 
            sep = ";", header = TRUE, dec=",")
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -55,7 +55,16 @@ siteData <- data.frame(
             "10.1111/nph.13597")
 )
 
-# 1. TREE DATA ------------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+# sacado de los metadatos de sapfluxnet
+terrainData <- data.frame(
+  latitude = 31.345,
+  elevation = 650,
+  aspect = 0, # Flat
+  slope = 0 # Hilltop
+)
+
+# 3. TREE DATA ------------------------------------------------------------
 PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
 treeData <- data.frame(
   Species = "Pinus halepensis",
@@ -72,40 +81,43 @@ vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
 vprofile_rootDistribution(f, SpParams = SpParamsMED)
 summary(f, SpParamsMED)
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info at the moment
+shrubData <- data.frame(
+  Species = numeric(0), 
+  Cover = numeric(0),
+  Height = numeric(0),
+  Z50 = numeric(0),
+  Z95 = numeric(0)
+)
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ISRYAT',
-  herbCover = 5, herbHeight = 20,
+  SpParamsName = "SpParamsMED",
+  herbCover = 0, herbHeight = 0,
   Validation = 'global_transp', Definitive = 'No'
 )
 
-# 5. SOIL DATA ------------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
   widths = c(200, 300, 3000),
   sand = rep(31, 3),
   clay = rep(28, 3),
   om = c(6,3,1),
   bd = rep(1.45, 3),
-  rfc = c(75, 75, 92)
+  rfc = c(75, 75, 85),
+  VG_theta_sat = rep(0.45, 3),
+  VG_theta_res = rep(0.003, 3)
 )
-sum(soil_waterExtractable(soil(soilData, VG_PTF = "Toth"), model="VG", minPsi = -4))
+s<-soil(soilData, VG_PTF = "Toth")
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-# 6. TERRAIN DATA ---------------------------------------------------------
-# sacado de los metadatos de sapfluxnet
-terrainData <- data.frame(
-  latitude = 31.345,
-  elevation = 650,
-  aspect = 0, # Flat
-  slope = 0 # Hilltop
-)
 
-# 7. METEO DATA -----------------------------------------------------------
+# 8. METEO DATA -----------------------------------------------------------
 # FROM SAPFLUXNET
 # meteoData <- env_data |>
 #   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
@@ -132,7 +144,7 @@ meteoData <- yat_meteo |>
          WindSpeed = WS_mean) |>
   mutate(dates = as.Date(dates, format = "%d/%m/%Y"))
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 PH_cohname = paste0("T1_", PH_index)
 ph <- 1
 customParams <- data.frame(
@@ -204,7 +216,7 @@ customParams$Gs_slope[ph] <- (88.0 - 12.0)/(2.14 - 1.36);
 customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # No tenemos area del plot, navegando entre referencias del artículo
 # (Biogeochemical factors contributing to enhanced carbon storage following
 # afforestation of a semi-arid shrubland && Water limitation to soil CO2 efflux
@@ -243,7 +255,7 @@ measuredData <- env_data %>%
   dplyr::select(dates, SWC, SWC_err, SWC_2, Eplanttot, E_T1_148) |>
   dplyr::filter(!is.na(dates))
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 evaluation_period <- seq(as.Date("2014-01-01"),as.Date("2015-02-04"), by="day")
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
 meteoData <- meteoData |> filter(dates %in% evaluation_period)
@@ -252,21 +264,15 @@ row.names(measuredData) <- NULL
 summary(measuredData)
 summary(meteoData)
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI'),
-  Remark = c('soil optmization + soilGrids for the second layer',
-             'Optimization mode 1',
-             'Not modified',
-             'Initial value adjusted to measured value for first layer',
-             'Custom, increased from the authors LAI')
+            'Vegetation'),
+  Remark = c('50-cm soil with rocky layers. Modification of theta_res',
+             'No understory considered')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'ISRYAT')
 write.table(siteData, file = file.path(folder_name, 'ISRYAT_siteData.txt'),
             row.names = FALSE, sep = '\t')

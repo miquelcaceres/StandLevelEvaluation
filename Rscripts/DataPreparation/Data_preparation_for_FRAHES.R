@@ -17,7 +17,7 @@ plant_md <- read.csv('SourceData/Tables/Hesse/FRA_HES_HE2_NON_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Hesse/FRA_HES_HE2_NON_species_md.csv')
 swc_FRAHES <- readxl::read_xls('SourceData/Tables/Hesse/soilwater_Hesse.xls')
 
-# 0. SITE INFORMATION -----------------------------------------------------
+# 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
@@ -55,7 +55,15 @@ siteData <- data.frame(
             "10.1051/forest:2008052")
 )
 
-# 1. TREE DATA ------------------------------------------------------------
+# 2. TERRAIN DATA ---------------------------------------------------------
+terrainData <- data.frame(
+  latitude = 48.6742,
+  elevation = 300,
+  aspect = 0, # Flat
+  slope = 0 # < 2% slope
+)
+
+# 3. TREE DATA ------------------------------------------------------------
 FS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Fagus sylvatica"]
 treeData <- data.frame(
   Species = "Fagus sylvatica", 
@@ -72,40 +80,44 @@ vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
 vprofile_rootDistribution(f, SpParams = SpParamsMED)
 summary(f, SpParamsMED)
 
-# 2. SHRUB DATA -----------------------------------------------------------
+# 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info at the moment
+shrubData <- data.frame(
+  Species = numeric(0), 
+  Cover = numeric(0),
+  Height = numeric(0),
+  Z50 = numeric(0),
+  Z95 = numeric(0)
+)
 
-# 3. SEED DATA ------------------------------------------------------------
+# 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
 
 
-# 4. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FRAHES',
+  SpParamsName = "SpParamsMED",
   herbCover = 5, herbHeight = 20,
   Validation = 'global', Definitive = 'No'
 )
 
-# 5. SOIL DATA ------------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
   widths = c(200, 300, 700, 1000),
   sand = c(8, 8,8,8),
   clay = c(25,35,45,45),
   om = c(6,3,1,0),
   rfc = c(9, 13, 15, 95),
-  bd = c(1.16, 1.37, 1.58, 1.58)
+  bd = c(1.16, 1.37, 1.58, 1.58),
+  VG_theta_sat = c(0.5528318,0.5044341,0.4560364,0.4560364)
 )
-sum(soil_waterExtractable(soil(soilData, VG_PTF = "Toth"), model="VG", minPsi = -4))
+s <- soil(soilData, VG_PTF = "Toth")
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
-# 6. TERRAIN DATA ---------------------------------------------------------
-terrainData <- data.frame(
-  latitude = 48.6742,
-  elevation = 300,
-  aspect = 0, # Flat
-  slope = 0 # < 2% slope
-)
 
-# 7. METEO DATA -----------------------------------------------------------
+
+# 8. METEO DATA -----------------------------------------------------------
 meteoData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')),
                 rh = (vpd*100)/(0.61078*exp((17.269*ta)/(237.3+ta)))) |> # no hay rh, asi que transformo la vpd
@@ -127,7 +139,7 @@ meteoData <- env_data |>
   dplyr::mutate(Radiation = na_if(Radiation, 0)) 
 
 
-# 8. CUSTOM PARAMS --------------------------------------------------------
+# 9. CUSTOM PARAMS --------------------------------------------------------
 FS_cohname = paste0("T1_", FS_index)
 fs <- 1
 customParams <- data.frame(
@@ -159,7 +171,7 @@ customParams <- data.frame(
 
 
 
-# 9. MEASURED DATA --------------------------------------------------------
+# 10. MEASURED DATA --------------------------------------------------------
 # N
 N_real <- (treeData[['N']]*6000)/10000
 
@@ -200,14 +212,14 @@ measuredData <- swc_FRAHES |>
   dplyr::mutate(dates = as.Date(ydoy.ymd(year, DOY))) |>
   dplyr::select(dates, 3:15) |>
   dplyr::mutate(
-    SWC = `H-10` + `H-20` + `H-30`) |>
+    SWC = (`H-10` + `H-20` + `H-30`)/3) |>
   dplyr::full_join(transp_data_temp, by = 'dates') |>
   dplyr::mutate(SWC_err = NA) |>
   dplyr::select(dates, SWC, SWC_err, Eplanttot, E_T1_97) |>
   dplyr::arrange(dates)
 
 
-# 10. EVALUATION PERIOD ---------------------------------------------------
+# 11. EVALUATION PERIOD ---------------------------------------------------
 evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2005-12-31"), by="day")
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
 meteoData <- meteoData |> filter(dates %in% evaluation_period)
@@ -216,21 +228,15 @@ row.names(measuredData) <- NULL
 
 
 
-# 11. REMARKS -------------------------------------------------------------
+# 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'FC',
-            'W',
-            'LAI'),
-  Remark = c('Mix supplied by authors and soilGrids',
-             'Optimization mode 1',
-             'Adjusted to info from measured data',
-             'Initial value adjusted to measured value for first layer',
-             'Supplied by authors')
+            'Vegetation'),
+  Remark = c('VG_theta_sat modified',
+             'No understory')
 )
 
-# 12. SAVE DATA IN FOLDER -------------------------------------------------
+# 13. SAVE DATA IN FOLDER -------------------------------------------------
 folder_name <- file.path('Sites_data', 'FRAHES')
 
 write.table(siteData, file = file.path(folder_name, 'FRAHES_siteData.txt'),
