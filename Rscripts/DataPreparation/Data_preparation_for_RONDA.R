@@ -23,7 +23,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -36,11 +38,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Ronda (Pilones)",
             "Spain",
             "ESP_RON_PIL",
             "Víctor Lechuga (UJaén)",
+            "",
+            "",
             site_md$si_lat,
             site_md$si_long,
             site_md$si_elev,
@@ -48,11 +53,12 @@ siteData <- data.frame(
             315, #NW 
             "",
             "Silty loam",
-            site_md$si_mat,
-            site_md$si_map,
+            round(site_md$si_mat,1),
+            round(site_md$si_map),
             "Mixed gimnosperm forest dominated by Abies pinsapo",
             NA,
             "Abies pinsapo, Taxus baccata",
+            "2011-2013",
             "10.3390/f10121132")
 )
 
@@ -105,7 +111,23 @@ miscData <- data.frame(
   Validation = 'global', Definitive = 'No'
 )
 
-# 7. METEO DATA -----------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
+# coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
+# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
+soilData <- data.frame(
+  widths = c(300, 700, 1000, 2500),
+  clay = c(18.96667, 19.65000, 20.10000, 20.10000),
+  sand = c(44.46667, 45.20000, 45.70000,45.70000),
+  om = c(3.97, 1.18, 0.65, 0),
+  bd = c(1.276667, 1.420000,1.480000,1.480000),
+  rfc = c(19.46667,40,80,90),
+  VG_theta_sat = rep(0.55, 4),
+  VG_theta_res = rep(0.1, 4)
+)
+s = soil(soilData, VG_PTF = "Toth")
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
+
+# 8. METEO DATA -----------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
 # plot_sf <- sf::st_sf(terrainData, coords_sf)
 # climate_base = "emf/datasets/Climate/"
@@ -153,21 +175,6 @@ meteoData[meteoData$dates %in% meteoDataSite$dates[!is.na(meteoDataSite$MaxTempe
 meteoData[meteoData$dates %in% meteoDataSite$dates[!is.na(meteoDataSite$MinRelativeHumidity)], "MinRelativeHumidity"] <- meteoDataSite$MinRelativeHumidity[!is.na(meteoDataSite$MinRelativeHumidity)]
 meteoData[meteoData$dates %in% meteoDataSite$dates[!is.na(meteoDataSite$MaxRelativeHumidity)], "MaxRelativeHumidity"] <- meteoDataSite$MaxRelativeHumidity[!is.na(meteoDataSite$MaxRelativeHumidity)]
 
-# 8. SOIL DATA ------------------------------------------------------------
-# coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
-# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
-soilData <- data.frame(
-  widths = c(300, 700, 1000, 2500),
-  clay = c(18.96667, 19.65000, 20.10000, 20.10000),
-  sand = c(44.46667, 45.20000, 45.70000,45.70000),
-  om = c(3.97, 1.18, 0.65, 0),
-  bd = c(1.276667, 1.420000,1.480000,1.480000),
-  rfc = c(19.46667,40,80,90),
-  VG_theta_sat = rep(0.55, 4),
-  VG_theta_res = rep(0.1, 4)
-)
-s = soil(soilData, VG_PTF = "Toth")
-sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------

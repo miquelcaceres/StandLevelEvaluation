@@ -14,6 +14,7 @@ env_md <- read.csv('SourceData/Tables/Puechabon/FRA_PUE_env_md.csv')
 site_md <- read.csv('SourceData/Tables/Puechabon/FRA_PUE_site_md.csv')
 stand_md <- read.csv('SourceData/Tables/Puechabon/FRA_PUE_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Puechabon/FRA_PUE_plant_md.csv')
+fluxnet_data <- read.csv('SourceData/Tables/Puechabon/FLX_FR-Pue_FLUXNET2015_SUBSET_DD_2000-2014_2-4.csv')
 pue_meteo <- readr::read_delim("SourceData/Tables/Puechabon/Climat_Puechabon_site.csv", 
                         delim = ";", escape_double = FALSE, trim_ws = TRUE)
 
@@ -26,7 +27,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -39,10 +42,13 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Evaluation period',
                 'Description DOI'),
   Value = c("Puéchabon",
             "France",
             "FRA_PUE",
+            "Jean-Marc Limousin (CEFE-CNRS)",
+            "FR-Pue",
             "Jean-Marc Limousin (CEFE-CNRS)",
             43.74,
             3.60,
@@ -51,11 +57,12 @@ siteData <- data.frame(
             0,
             "Limestone",
             "Silty clay loam",
-            13.2,
-            720,
+            round(site_md$si_mat,1),
+            round(site_md$si_map),
             "Dense evergreen forest dominated by Q. ilex",
             2.0,
             "Quercus ilex, Buxus sempervirens",
+            "2004-2006",
             "10.1111/j.1365-2486.2009.01852.x")
 )
 
@@ -302,19 +309,29 @@ transp_data_temp <- sapf_data %>%
                 E_BS = NA) %>%
   dplyr::select(dates, E_QI, E_BS)
 
-measuredData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  dplyr::select(dates, swc_shallow) %>%
-  dplyr::group_by(dates) %>%
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) %>%
+fluxData <- fluxnet_data |>
+  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
+                GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
+  dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
+  dplyr::select(dates, LE_CORR, GPP_NT_VUT_REF) |>
+  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
+                GPP = GPP_NT_VUT_REF) |>
+  dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
+
+measuredData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')))  |>
+  dplyr::select(dates, swc_shallow)  |>
+  dplyr::group_by(dates)  |>
+  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))  |>
   dplyr::left_join(transp_data_temp, by = 'dates') %>%
   dplyr::filter(dates > as.Date('2002-12-31') & dates < as.Date('2016-01-01')) %>%
-  dplyr::mutate(Eplanttot = NA, SWC_err = NA) %>%
-  dplyr::select(dates, SWC, SWC_err, Eplanttot, E_QI, E_BS)
+  dplyr::mutate(SWC_err = NA)  |>
+  dplyr::select(dates, SWC, SWC_err, E_QI, E_BS) |>
+  dplyr::left_join(fluxData, by="dates")
 
 measuredData<-as.data.frame(measuredData)
 row.names(measuredData) <- measuredData$dates
-names(measuredData)[5:6] <- paste0("E_",c(QI_cohname, BS_cohname))
+names(measuredData)[4:5] <- paste0("E_",c(QI_cohname, BS_cohname))
 
 wpData <- read_xlsx("SourceData/Tables/Puechabon/FRA_PUE_WaterPotentials.xlsx")
 measuredData[as.character(wpData$Date), paste0("PD_", QI_cohname)] = wpData$PD
@@ -329,7 +346,6 @@ measuredData <- measuredData |> filter(dates %in% evaluation_period)
 meteoData <- meteoData |> filter(dates %in% evaluation_period)
 row.names(meteoData) <- NULL
 row.names(measuredData) <- NULL
-
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

@@ -14,14 +14,17 @@ site_md <- read.csv('SourceData/Tables/Torgnon/ITA_TOR_site_md.csv')
 stand_md <- read.csv('SourceData/Tables/Torgnon/ITA_TOR_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Torgnon/ITA_TOR_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Torgnon/ITA_TOR_species_md.csv')
-
+fluxnet_data <- read.csv('SourceData/Tables/Torgnon/FLX_IT-Tor_FLUXNET2015_SUBSET_DD_2008-2014_2-4.csv')
+fluxnet_data_hourly <- read.csv('SourceData/Tables/Torgnon/FLX_IT-Tor_FLUXNET2015_SUBSET_HH_2008-2014_2-4.csv')
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -34,11 +37,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Torgnon",
             "Italy",
             site_md$si_code,
             "Marta Galvagno (ARPA VdA))",
+            "IT-Tor",
+            "Edoardo cremonese (ARPA VdA))",
             site_md$si_lat,
             site_md$si_long,
             site_md$si_elev,
@@ -46,11 +52,12 @@ siteData <- data.frame(
             110, #S 
             "",
             "Loamy sand",
-            site_md$si_mat,
-            site_md$si_map,
+            round(site_md$si_mat,1),
+            round(site_md$si_map),
             "European larch forest",
             stand_md$st_lai,
             "Larix decidua",
+            "2013-2016",
             "110.1007/s00484-012-0614-y")
 )
 
@@ -101,7 +108,24 @@ miscData <- data.frame(
 )
 
 # 7. METEO DATA -----------------------------------------------------------
-meteoData <- env_data |>
+meteoData1 <- fluxnet_data_hourly |>
+  dplyr::mutate(RH = replace(RH, RH==-9999, NA)) |>
+  dplyr::mutate(dates = as.Date(substr(as.character(TIMESTAMP_START),1,8), format = "%Y%m%d")) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(MinTemperature = min(TA_F, na.rm = TRUE),
+                   MaxTemperature = max(TA_F, na.rm = TRUE),
+                   MinRelativeHumidity = min(RH, na.rm = TRUE),
+                   MaxRelativeHumidity = max(RH, na.rm = TRUE),
+                   Radiation = (sum((SW_IN_F * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+                   Precipitation = sum(P_F, na.rm = TRUE),
+                   WindSpeed = mean(WS_F, na.rm = TRUE)) |>
+  dplyr::mutate(Radiation = Radiation*3600*24/1000000) |>
+  dplyr::mutate_at(dplyr::vars(2:5),
+                   dplyr::funs(replace(., is.infinite(.), NA))) |>
+  dplyr::mutate_at(dplyr::vars(2:5),
+                   dplyr::funs(replace(., is.nan(.), NA))) 
+
+meteoData2 <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
   dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
@@ -119,12 +143,14 @@ meteoData <- env_data |>
 
 
 #Imputation of missing vaues
-dates_mis <- which(is.na(meteoData$MinTemperature))
-meteoData[318, 2:8] <- meteoData[317, 2:8]
-meteoData[319, 2:8] <- meteoData[317, 2:8]
-meteoData[481, 2:8] <- meteoData[480, 2:8]
-meteoData[482, 2:8] <- meteoData[480, 2:8]
-meteoData[483, 2:8] <- meteoData[480, 2:8]
+dates_mis <- which(is.na(meteoData2$MinTemperature))
+meteoData2[318, 2:8] <- meteoData2[317, 2:8]
+meteoData2[319, 2:8] <- meteoData2[317, 2:8]
+meteoData2[481, 2:8] <- meteoData2[480, 2:8]
+meteoData2[482, 2:8] <- meteoData2[480, 2:8]
+meteoData2[483, 2:8] <- meteoData2[480, 2:8]
+
+meteoData <- dplyr::bind_rows(meteoData1, meteoData2)
 
 # 8. SOIL DATA ------------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
@@ -211,11 +237,24 @@ measuredData <- env_data %>%
   dplyr::arrange(dates) 
 names(measuredData)[5] = c(paste0("E_", LD_cohname))
 
+fluxData <- fluxnet_data |>
+  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA)) |>
+  dplyr::mutate(SWC_F_MDS_1 = replace(SWC_F_MDS_1, SWC_F_MDS_1==-9999, NA)) |>
+  dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
+  dplyr::select(dates, LE_CORR, SWC_F_MDS_1) |>
+  dplyr::mutate(SWC = SWC_F_MDS_1/100) |>
+  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR) |># From Wm2 to MJ/m2
+  dplyr::select(-LE_CORR, -SWC_F_MDS_1)
+
+measuredData <- measuredData|>
+  dplyr::full_join(fluxData, by=c("dates", "SWC"))|>
+  dplyr::arrange(dates) 
+
 # 11. EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
-# evaluation_period <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"), by="day")
-# measuredData <- measuredData |> filter(dates %in% evaluation_period)
-# meteoData <- meteoData |> filter(dates %in% evaluation_period)
+evaluation_period <- seq(as.Date("2013-01-01"),as.Date("2016-12-31"), by="day")
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
+meteoData <- meteoData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

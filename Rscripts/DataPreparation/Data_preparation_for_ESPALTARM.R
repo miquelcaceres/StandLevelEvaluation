@@ -25,7 +25,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -38,11 +40,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Alto Tajo (Armallones)",
             "Spain",
             "ESP_ALT_ARM",
             "Alicia Forner (MNCN-CSIC)",
+            "",
+            "",
             40.7769,
             -2.3283,
             1079,
@@ -55,6 +60,7 @@ siteData <- data.frame(
             "Sparse mixed forest dominated by three species",
             1.09,
             "Pinus nigra, Quercus faginea, Quercus ilex",
+            "2012-2013",
             "10.1007/S11258-014-0351-x")
 )
 
@@ -110,7 +116,23 @@ miscData <- data.frame(
   Validation = 'global_transp', Definitive = 'Yes'
 )
 
-# 7. METEO DATA -----------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
+# No hay descripción de suelo, ni porcentajes ni bulk ni nada. SoilGrids 
+# coords_sf <- sf::st_sfc(sf::st_point(c(-2.3283,40.7769)), crs = 4326)
+# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
+# soilData$rfc =c(45,65,80,95)
+soilData <- data.frame(
+  widths = c(300, 700, 1000, 2500),
+  clay = c(21.8667, 23.80000, 24.10000, 24.10000),
+  sand = c(41.4, 42.2, 41.7,41.7),
+  om = c(4.26, 0.87, 0.55, 0.55),
+  bd = c(1.243333, 1.510000,1.560000,1.560000),
+  rfc = c(45,65,90,95)
+)
+s = soil(soilData, VG_PTF = "Toth")
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
+
+# 8. METEO DATA -----------------------------------------------------------
 meteoData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
@@ -126,21 +148,6 @@ meteoData <- env_data |>
   dplyr::mutate(Radiation = Radiation*3600*24/1000000) 
 meteoData<- meteoData[!is.infinite(meteoData$MinTemperature),]
 
-# 8. SOIL DATA ------------------------------------------------------------
-# No hay descripción de suelo, ni porcentajes ni bulk ni nada. SoilGrids 
-# coords_sf <- sf::st_sfc(sf::st_point(c(-2.3283,40.7769)), crs = 4326)
-# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
-# soilData$rfc =c(45,65,80,95)
-soilData <- data.frame(
-  widths = c(300, 700, 1000, 2500),
-  clay = c(21.8667, 23.80000, 24.10000, 24.10000),
-  sand = c(41.4, 42.2, 41.7,41.7),
-  om = c(4.26, 0.87, 0.55, 0.55),
-  bd = c(1.243333, 1.510000,1.560000,1.560000),
-  rfc = c(45,65,90,95)
-)
-s = soil(soilData, VG_PTF = "Toth")
-sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------

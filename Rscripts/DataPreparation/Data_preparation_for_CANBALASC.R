@@ -25,7 +25,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -38,11 +40,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Can Balasc",
             "Spain",
             "ESP_CAN",
             "Elisenda Sánchez-Costa (IDAEA-CSIC)",
+            "",
+            "",
             41.43099,
             2.0736,
             270,
@@ -55,6 +60,7 @@ siteData <- data.frame(
             "Mixed forest dominated by Q. ilex",
             3.2,
             "Quercus ilex, Quercus pubescens, Pinus halepensis, Arbutus unedo",
+            "2011-2012",
             "10.1016/j.agrformet.2015.03.012")
 )
 
@@ -109,27 +115,7 @@ miscData <- data.frame(
   Validation = 'global_transp', Definitive = 'Yes'
 )
 
-# 7. METEO DATA -----------------------------------------------------------
-meteoData <- env_data |>
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  dplyr::group_by(dates) |>
-  dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
-                   MaxTemperature = max(ta, na.rm = TRUE),
-                   MinRelativeHumidity = min(rh, na.rm = TRUE),
-                   MaxRelativeHumidity = max(rh, na.rm = TRUE),
-                   WindSpeed = mean(ws, na.rm = TRUE),
-                   Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
-                   Precipitation = sum(precip, na.rm = TRUE)) |>
-  dplyr::mutate(Radiation = Radiation*3600*24/1000000) |> # w/m2 to MJ/m2/day
-  dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Humidity')),
-                   dplyr::funs(replace(., . > 100, 100))) |>
-  dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Speed')),
-                   dplyr::funs(replace(., is.nan(.), NA))) |>
-  as.data.frame()
-meteoData <- meteoData[!is.na(meteoData$dates),] 
-
-
-# 8. SOIL DATA ------------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
 # Obetnidos de los datos de Antoine
 # 
 # DESCRIPCIÓ DEL SÒL DE LA PARCELA PERMANENT D’ALZINAR DE CAN BALASC (COLLSEROLA)
@@ -150,6 +136,27 @@ soilData <- data.frame(
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
+
+# 8. METEO DATA -----------------------------------------------------------
+meteoData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
+                   MaxTemperature = max(ta, na.rm = TRUE),
+                   MinRelativeHumidity = min(rh, na.rm = TRUE),
+                   MaxRelativeHumidity = max(rh, na.rm = TRUE),
+                   WindSpeed = mean(ws, na.rm = TRUE),
+                   Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+                   Precipitation = sum(precip, na.rm = TRUE)) |>
+  dplyr::mutate(Radiation = Radiation*3600*24/1000000) |> # w/m2 to MJ/m2/day
+  dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Humidity')),
+                   dplyr::funs(replace(., . > 100, 100))) |>
+  dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Speed')),
+                   dplyr::funs(replace(., is.nan(.), NA))) |>
+  as.data.frame()
+meteoData <- meteoData[!is.na(meteoData$dates),] 
+
+
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------

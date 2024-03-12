@@ -17,12 +17,22 @@ plant_md <- read.csv('SourceData/Tables/Hesse/FRA_HES_HE2_NON_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Hesse/FRA_HES_HE2_NON_species_md.csv')
 swc_FRAHES <- readxl::read_xls('SourceData/Tables/Hesse/soilwater_Hesse.xls')
 
+flux_data <- dplyr::bind_rows(
+  read.csv('SourceData/Tables/Hesse/EFDC_L2_Flx_FRHes_2001_v04_30m.txt'),
+  read.csv('SourceData/Tables/Hesse/EFDC_L2_Flx_FRHes_2002_v04_30m.txt'),
+  read.csv('SourceData/Tables/Hesse/EFDC_L2_Flx_FRHes_2003_v02_30m.txt'),
+  read.csv('SourceData/Tables/Hesse/EFDC_L2_Flx_FRHes_2004_v05_30m.txt'),
+  read.csv('SourceData/Tables/Hesse/EFDC_L2_Flx_FRHes_2005_v06_30m.txt')
+  )
+
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -35,11 +45,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Hesse",
             "France",
             "FRA_HES_HE2_NON",
             "André Granier (INRAE)",
+            "FR-Hes",
+            "Matthias Cuntz (INRAE)",
             48.6742,
             7.0647,
             300,
@@ -47,11 +60,12 @@ siteData <- data.frame(
             0,
             "",
             "Silt loam",
-            9.3,
-            729,
+            round(site_md$si_mat,1),
+            round(site_md$si_map),
             "Naturally regenerated, managed beech forest",
             5,
             "Fagus sylvatica",
+            "2001-2005",
             "10.1051/forest:2008052")
 )
 
@@ -216,6 +230,31 @@ measuredData <- swc_FRAHES |>
   dplyr::full_join(transp_data_temp, by = 'dates') |>
   dplyr::mutate(SWC_err = NA) |>
   dplyr::select(dates, SWC, SWC_err, Eplanttot, E_T1_97) |>
+  dplyr::arrange(dates)
+
+fluxData <- flux_data |>
+  dplyr::mutate(SW_IN = replace(SW_IN, SW_IN==-9999, NA),
+                WS = replace(WS, WS==-9999, NA),
+                TA = replace(TA, TA==-9999, NA),
+                P = replace(P, P==-9999, NA),
+                LE = replace(LE, LE==-9999, NA),
+                RH = replace(RH, RH==-9999, NA),
+                PA = replace(PA, PA==-9999, NA),
+                SWC = replace(SWC, SWC==-9999, NA)) |>
+  dplyr::mutate(dates = as.Date(substr(as.character(TIMESTAMP_START),1,8), format = "%Y%m%d")) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(MinTemperature = min(TA, na.rm = TRUE),
+                   MaxTemperature = max(TA, na.rm = TRUE),
+                   MinRelativeHumidity = min(RH, na.rm = TRUE),
+                   MaxRelativeHumidity = max(RH, na.rm = TRUE),
+                   Radiation = (sum((SW_IN * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+                   Precipitation = sum(P, na.rm = TRUE),
+                   WindSpeed = mean(WS, na.rm = TRUE),
+                   LE = mean(LE, na.rm = TRUE),
+                   SWC = mean(SWC, na.rm = TRUE))
+
+measuredData <- measuredData |>
+  dplyr::full_join(fluxData[,c("dates", "LE")], by = 'dates') |>
   dplyr::arrange(dates)
 
 

@@ -32,7 +32,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -45,10 +47,13 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Font-Blanche",
             "France",
             "",
+            "",
+            "FR-Fbn",
             "Nicolas Martin-StPaul (INRAE)",
             43.24,
             5.68,
@@ -62,6 +67,7 @@ siteData <- data.frame(
             "Mixed forest with P. halepensis and Q. ilex",
             2.0,
             "Quercus ilex, Pinus halepensis, Phillyrea latifolia",
+            "2014",
             "10.1016/j.agrformet.2021.108472")
 )
 
@@ -134,7 +140,21 @@ miscData <- data.frame(
   Validation = 'global', Definitive = 'Yes'
 )
 
-# 7. METEO DATA -----------------------------------------------------------
+# 7. SOIL DATA ------------------------------------------------------------
+# As Puechabon
+soilData <- data.frame(
+  widths = c(300, 700, 1000, 2500),
+  clay = c(39, 39, 39, 39),
+  sand = c(26, 26, 26, 26), #14
+  om = c(6, 3, 1, 1),
+  bd = c(1.45, 1.45, 1.45, 1.45),
+  rfc = c(50,65,90,95)
+)
+s=soil(soilData)
+sum(soil_waterExtractable(s, model="VG", minPsi = -4))
+
+
+# 8. METEO DATA -----------------------------------------------------------
 env_data = rbind(env_data2008, env_data2009, env_data2010, env_data2011, env_data2012, env_data2013,
                  env_data2014, env_data2015, env_data2016, env_data2017, env_data2018)
 dates = env_data$date
@@ -160,21 +180,6 @@ meteoData <- data.frame(dates = dates,
 meteo_sel = complete.cases(meteoData)
 meteoData <- meteoData[meteo_sel,]
 
-# 8. SOIL DATA ------------------------------------------------------------
-# As Puechabon
-soilData <- data.frame(
-  widths = c(300, 700, 1000, 2500),
-  clay = c(39, 39, 39, 39),
-  sand = c(26, 26, 26, 26), #14
-  om = c(6, 3, 1, 1),
-  bd = c(1.45, 1.45, 1.45, 1.45),
-  rfc = c(50,65,90,95),
-  VG_theta_sat = rep(0.5, 4),
-  VG_theta_res = rep(0.1, 4),
-)
-s=soil(soilData)
-# write.table(format(soilData,2), "D:/Recerca/Comunication/Docencia/Bagnuls2019/Datasets/Fontblanche_soil.txt", sep="\t", quote=FALSE)
-sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
 PL_cohname = paste0("T1_", PL_index)
@@ -319,17 +324,9 @@ measuredData <- measuredData[(d>="2014-01-01") & (d<="2014-12-31"),] #Select yea
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Fine Roots Proportion',
-            'W',
-            'LAI',
-            'xylem_kmax',
-            'Gwmax'),
-  Remark = c('soil data from soil grids except RFC and layer depths',
-             'Optimization mode 2',
-             'Initial value adjusted to measured value for first layer',
-             'Supplied by authors',
-             'Modified arbitrarily to 0.4',
-             'Modified to 0.3')
+            'Vegetation'),
+  Remark = c('',
+             '')
 )
 
 

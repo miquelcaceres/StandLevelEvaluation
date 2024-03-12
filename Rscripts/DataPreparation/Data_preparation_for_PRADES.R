@@ -18,7 +18,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -31,11 +33,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Evaluation period',
                 'Description DOI'),
   Value = c("Prades (Tillar valley)",
             "Spain",
             "ESP_TIL_MIX",
             "Rafael Poyatos (CREAF)",
+            "",
+            "",
             41.33,
             1.02,
             1018,
@@ -48,6 +53,7 @@ siteData <- data.frame(
             "Mixed forest with P. sylvestris (overstory) Q. ilex (midstory)",
             3.27,
             "Quercus ilex, Pinus sylvestris",
+            "2011",
             "10.1111/nph.12278")
 )
 

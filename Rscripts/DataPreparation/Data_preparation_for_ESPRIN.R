@@ -24,7 +24,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -37,11 +39,14 @@ siteData <- data.frame(
                 'Stand description',
                 'Stand LAI',
                 'Species simulated',
+                'Period simulated',
                 'Description DOI'),
   Value = c("Rinconada",
             "Spain",
             "ESP_RIN",
             "Virginia Hernandez-Santana (IRNAS-CSIC)",
+            "",
+            "",
             40.60028,
             -6.016667,
             1200,
@@ -54,6 +59,7 @@ siteData <- data.frame(
             "Young, homogeneous, Quercus pyrenaica regrowth forest",
             3.4,
             "Quercus pyrenaica",
+            "2006-2007",
             "10.1016/j.foreco.2008.03.004")
 )
 

@@ -1,8 +1,8 @@
 
 ## data preparation
-sites = c("FRAPUE", "FRAHES", "ISRYAT", "ESPRIN", 
-          "QVALLCEBRE", "PVALLCEBRE", "PRADES", "FONBLA", 
-          "CANBALASC", "ESPALTARM", "RONDA")
+sites = c("FRAPUE", "MITRA","FRAHES", "ISRYAT", "ESPRIN", "QVALLCEBRE", "PVALLCEBRE",
+          "FONTAINEBLEAU", "DAVOS", "EUCFACE","PRADES", "WOMBAT", "FONBLA",
+          "CANBALASC", "ESPALTARM", "RONDA", "USAMORSF")
 ## Model runs & evaluation
 wd = getwd()
 medfatereports::run_reports(sites= sites, model="spwb", 
