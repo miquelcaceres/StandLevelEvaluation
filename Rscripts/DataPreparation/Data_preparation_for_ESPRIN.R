@@ -5,6 +5,7 @@ library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -17,7 +18,6 @@ plant_md <- read.csv('SourceData/Tables/Rinconada/ESP_RIN_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Rinconada/ESP_RIN_species_md.csv')
 swc_esprin <- readxl::read_xlsx('SourceData/Tables/Rinconada/ESP_RIN_SWC.xlsx')
 
-QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pyrenaica"]
 
 
 # 1. SITE INFORMATION -----------------------------------------------------
@@ -37,20 +37,22 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Rinconada",
             "Spain",
             "ESP_RIN",
             "Virginia Hernandez-Santana (IRNAS-CSIC)",
             "",
             "",
-            40.60028,
-            -6.016667,
-            1200,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
+            site_md$si_elev,
             10,
             0, # North Orientation?
             "",
@@ -59,16 +61,18 @@ siteData <- data.frame(
             1000,
             "Young, homogeneous, Quercus pyrenaica regrowth forest",
             3.4,
+            "10.1016/j.foreco.2008.03.004",
             "Quercus pyrenaica",
+            "SpParamsES",
             "2006-2007",
-            "10.1016/j.foreco.2008.03.004")
+            "2006-2007")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
 # sacado de los metadatos de sapfluxnet
 terrainData <- data.frame(
-  latitude = 40.60028,
-  elevation = 1200,
+  latitude = site_md$si_lat,
+  elevation = site_md$si_elev,
   aspect = 0, # North
   slope = 10 # 
 )
@@ -187,6 +191,7 @@ meteoData <- rbind(meteoDataInt[!(meteoDataInt$dates %in% meteoDataSite$dates), 
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
+QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pyrenaica"]
 QP_cohname = paste0("T1_", QP_index)
 qp<- 1
 customParams <- data.frame(
@@ -270,7 +275,7 @@ names(measuredData)[5:9] = c(paste0("E_", QP_cohname),
                              paste0("MD_", QP_cohname),
                              paste0("MD_", QP_cohname, "_err"))
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 
 
@@ -278,10 +283,12 @@ names(measuredData)[5:9] = c(paste0("E_", QP_cohname),
 remarks <- data.frame(
   Title = c('Soil',
             'Vegetation',
-            'Weather'),
+            'Weather',
+            'Sapflow'),
   Remark = c('Taken from SoilGrids, with modification of theta_sat and theta_res',
              'Understory not considered',
-             'Available weather complemented with interpolation')
+             'Available weather complemented with interpolation',
+             'Sapflow scaling needs to be revised')
 )
 
 

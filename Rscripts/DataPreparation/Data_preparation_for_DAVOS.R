@@ -34,19 +34,21 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Davos Seehornwald",
             "Switzerland",
             site_md$si_code,
             "Roman Zweifel (WSL)",
             "CH-Dav",
             "Nina Buchmann (ETH)",
-            site_md$si_lat,
-            site_md$si_long,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
             site_md$si_elev,
             0, # < 2%
             0, #N 
@@ -56,9 +58,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Subalpine coniferous (spruce) forest",
             stand_md$st_lai,
+            "10.1007/s10021-011-9481-3",
             "Picea abies",
+            "SpParamsFR",
             "2010",
-            "10.1007/s10021-011-9481-3")
+            "2010 (growing season)")
 )
 
 
@@ -220,16 +224,11 @@ measuredData <- env_data |>
   dplyr::left_join(fluxData, by = 'dates')
 
 
-# measuredData <- measuredData  |>
-#   dplyr::left_join(fluxData, by="dates")
-
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2010-01-01"),as.Date("2010-12-01"), by="day")
 evaluation_period <- seq(as.Date("2010-01-01"),as.Date("2010-12-01"), by="day")
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

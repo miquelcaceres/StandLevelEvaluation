@@ -38,19 +38,21 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Vallcebre (Cal Sort)",
             "Spain",
             site_md$si_code,
             "Rafael Poyatos (CREAF)",
             "",
             "",
-            site_md$si_lat,
-            site_md$si_long,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
             site_md$si_elev,
             10,
             0,
@@ -60,9 +62,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Pinus sylvestris forest in a terraced area",
             2.4,
+            "10.5194/hess-9-493-2005",
             "Pinus sylvestris",
+            "SpParamsES",
             "2003-2005",
-            "10.5194/hess-9-493-2005")
+            "2003-2005")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -257,9 +261,7 @@ smcData <- env_data |>
 measuredData <- measuredData |>
   dplyr::left_join(smcData, by="dates")
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# d = as.Date(meteoData$dates)
-# meteoData <- meteoData[(d>="2004-01-01") & (d<"2005-12-31"),] #Select two years
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 
 
 # 12. REMARKS -------------------------------------------------------------

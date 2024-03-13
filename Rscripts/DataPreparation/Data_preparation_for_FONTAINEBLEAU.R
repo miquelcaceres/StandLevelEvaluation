@@ -34,11 +34,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Fontainebleau-Barbeau",
             "France",
             site_md$si_code,
@@ -56,9 +58,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Mixed deciduous forest",
             stand_md$st_lai,
+            "10.1111/nph.13771",
             "Quercus petraea, Carpinus betulus",
+            "SpParamsFR",
             "2006",
-            "10.1111/nph.13771")
+            "2006")
 )
 
 
@@ -227,11 +231,12 @@ fluxData <- fluxnet_data |>
 measuredData <- measuredData  |>
   dplyr::left_join(fluxData, by="dates")
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
+simulation_period <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"), by="day")
 evaluation_period <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

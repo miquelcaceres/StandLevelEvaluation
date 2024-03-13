@@ -11,7 +11,12 @@ data("SpParamsES")
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_env_data.csv')
 sapf_data <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_sapf_data.csv')
+env_md <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_env_md.csv')
+site_md <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_site_md.csv')
+stand_md <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_plant_md.csv')
+prades_wp <- read.table("SourceData/Tables/Prades/TitllarWaterPotentials.csv",
+                        sep = ",", header = TRUE)
 
 
 # 1. SITE INFORMATION -----------------------------------------------------
@@ -31,45 +36,46 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Prades (Tillar valley)",
             "Spain",
             "ESP_TIL_MIX",
             "Rafael Poyatos (CREAF)",
             "",
             "",
-            41.33,
-            1.02,
-            1018,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
+            site_md$si_elev,
             35,
             8.53,
             "Fractured schist",
             "Clay loam",
-            11.3,
-            664,
+            round(site_md$si_mat,1),
+            site_md$si_map,
             "Mixed forest with P. sylvestris (overstory) Q. ilex (midstory)",
-            3.27,
+            stand_md$st_lai,
+            "10.1111/nph.12278",
             "Quercus ilex, Pinus sylvestris",
-            "2011",
-            "10.1111/nph.12278")
+            "SpParamsES",
+            "2010-2013",
+            "2010-2013")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
 terrainData <- data.frame(
-  latitude = 41.33,
-  elevation = 1018,
+  latitude = site_md$si_lat,
+  elevation = site_md$si_elev,
   aspect = 8.53,
   slope = 35
 )
 
 # 3. TREE DATA ------------------------------------------------------------
-QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
-PS_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus sylvestris"]
-
 treeData <- data.frame(
   Species = c("Pinus sylvestris", "Quercus ilex"),
   DBH = c(27.70, 8.40),
@@ -123,26 +129,26 @@ sum(soil_waterExtractable(soil(soilData, VG_PTF = "Toth"), model="VG", minPsi = 
 
 
 # 8. METEO DATA -----------------------------------------------------------
-
-meteoData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  dplyr::group_by(dates) %>%
+meteoData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::group_by(dates) |>
   dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
                    MaxTemperature = max(ta, na.rm = TRUE),
                    MinRelativeHumidity = min(rh, na.rm = TRUE),
                    MaxRelativeHumidity = max(rh, na.rm = TRUE),
                    WindSpeed = mean(ws, na.rm = TRUE),
                    Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
-                   Precipitation = sum(precip, na.rm = TRUE)) %>%
-  dplyr::mutate(Radiation = Radiation*3600*24/1000000) %>% # w/m2 to MJ/m2/day
+                   Precipitation = sum(precip, na.rm = TRUE)) |>
+  dplyr::mutate(Radiation = Radiation*3600*24/1000000)|> # w/m2 to MJ/m2/day
   dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Humidity')),
-                   dplyr::funs(replace(., . > 100, 100))) %>%
+                   dplyr::funs(replace(., . > 100, 100))) |>
   dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Speed')),
-                   dplyr::funs(replace(., is.nan(.), NA))) %>%
-  as.data.frame()
+                   dplyr::funs(replace(., is.nan(.), NA))) 
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
+PS_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus sylvestris"]
 PS_cohname = paste0("T1_", PS_index)
 QI_cohname = paste0("T2_", QI_index)
 ps <- 1
@@ -251,105 +257,55 @@ customParams$Gs_P50[qi] <- -1.0 + log(0.12/0.88)/(customParams$Gs_slope[qi]/25)
 customParams$Gs_slope[ps] <- (88.0 - 12.0)/(2.14 - 1.36);
 customParams$Gs_P50[ps] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ps]/25)
 
-
-# 10. MEASURED DATA --------------------------------------------------------
-# sapflow data, está en mm3/mm2 s, y el timestep es 15 minutos, así que tenemos que
-# multiplicar por 15*60 segundos para los mm3/mm2 en el timestep, por el As2Al de cada árbol *100 (mm2 to cm2 sapwood area) y 
-# dividir entre 1000000 para tenerlo en L.
-# Agrego los datos de sapflow por día, sumo todos los árboles y luego multiplico
-# por LAI y divido por n = numero de arboles medidos
 As2Al = plant_md[['pl_sapw_area']]/plant_md[['pl_leaf_area']] # cm2/m2
-
-Al2As_sp = c(mean(10000/As2Al[c(1:22)]), mean(10000/As2Al[c(23:28)]))
+Al2As_sp = c(mean(10000/As2Al[plant_md$pl_species=="Pinus sylvestris"]), mean(10000/As2Al[plant_md$pl_species=="Quercus ilex"]))
 customParams$Al2As = Al2As_sp
 
-transp_data_temp <- sapf_data %>%
+# 10. MEASURED DATA --------------------------------------------------------
+# sapflow data, está en cm3 cm-2 h-1 of leaf area, y el timestep es 15 minutos, así que tenemos que
+# multiplicar por 15*60 segundos para los l/m-2 en el timestep.
+# Agrego los datos de sapflow por día, promedio todos los árboles 
+transp_data_temp <- sapf_data |>
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_TIL_MIX')),
-                   dplyr::funs(.*60*15*100/1000000)) %>%
-  dplyr::mutate(ESP_TIL_MIX_Psy_Js_1 = (ESP_TIL_MIX_Psy_Js_1*As2Al[1]),
-                ESP_TIL_MIX_Psy_Js_2 = (ESP_TIL_MIX_Psy_Js_2*As2Al[2]),
-                ESP_TIL_MIX_Psy_Js_3 = (ESP_TIL_MIX_Psy_Js_3*As2Al[3]),
-                ESP_TIL_MIX_Psy_Js_4 = (ESP_TIL_MIX_Psy_Js_4*As2Al[4]),
-                ESP_TIL_MIX_Psy_Js_5 = (ESP_TIL_MIX_Psy_Js_5*As2Al[5]),
-                ESP_TIL_MIX_Psy_Js_6 = (ESP_TIL_MIX_Psy_Js_6*As2Al[6]),
-                ESP_TIL_MIX_Psy_Js_7 = (ESP_TIL_MIX_Psy_Js_7*As2Al[7]),
-                ESP_TIL_MIX_Psy_Js_8 = (ESP_TIL_MIX_Psy_Js_8*As2Al[8]),
-                ESP_TIL_MIX_Psy_Js_9 = (ESP_TIL_MIX_Psy_Js_9*As2Al[9]),
-                ESP_TIL_MIX_Psy_Js_10 = (ESP_TIL_MIX_Psy_Js_10*As2Al[10]),
-                ESP_TIL_MIX_Psy_Js_11 = (ESP_TIL_MIX_Psy_Js_11*As2Al[11]),
-                ESP_TIL_MIX_Psy_Js_12 = (ESP_TIL_MIX_Psy_Js_12*As2Al[12]),
-                ESP_TIL_MIX_Psy_Js_13 = (ESP_TIL_MIX_Psy_Js_13*As2Al[13]),
-                ESP_TIL_MIX_Psy_Js_14 = (ESP_TIL_MIX_Psy_Js_14*As2Al[14]),
-                ESP_TIL_MIX_Psy_Js_15 = (ESP_TIL_MIX_Psy_Js_15*As2Al[15]),
-                ESP_TIL_MIX_Psy_Js_16 = (ESP_TIL_MIX_Psy_Js_16*As2Al[16]),
-                ESP_TIL_MIX_Psy_Js_17 = (ESP_TIL_MIX_Psy_Js_17*As2Al[17]),
-                ESP_TIL_MIX_Psy_Js_18 = (ESP_TIL_MIX_Psy_Js_18*As2Al[18]),
-                ESP_TIL_MIX_Psy_Js_19 = (ESP_TIL_MIX_Psy_Js_19*As2Al[19]),
-                ESP_TIL_MIX_Psy_Js_20 = (ESP_TIL_MIX_Psy_Js_20*As2Al[20]),
-                ESP_TIL_MIX_Psy_Js_21 = (ESP_TIL_MIX_Psy_Js_21*As2Al[21]),
-                ESP_TIL_MIX_Psy_Js_22 = (ESP_TIL_MIX_Psy_Js_22*As2Al[22]),
-                ESP_TIL_MIX_Qil_Js_23 = (ESP_TIL_MIX_Qil_Js_23*As2Al[23]),
-                ESP_TIL_MIX_Qil_Js_24 = (ESP_TIL_MIX_Qil_Js_24*As2Al[24]),
-                ESP_TIL_MIX_Qil_Js_25 = (ESP_TIL_MIX_Qil_Js_25*As2Al[25]),
-                ESP_TIL_MIX_Qil_Js_26 = (ESP_TIL_MIX_Qil_Js_26*As2Al[26]),
-                ESP_TIL_MIX_Qil_Js_27 = (ESP_TIL_MIX_Qil_Js_27*As2Al[27]),
-                ESP_TIL_MIX_Qil_Js_28 = (ESP_TIL_MIX_Qil_Js_28*As2Al[28]),
-                ESP_TIL_MIX_Qil_Js_29 = (ESP_TIL_MIX_Qil_Js_29*As2Al[29]),
-                ESP_TIL_MIX_Qil_Js_30 = (ESP_TIL_MIX_Qil_Js_30*As2Al[30]),
-                ESP_TIL_MIX_Qil_Js_31 = (ESP_TIL_MIX_Qil_Js_31*As2Al[31]),
-                ESP_TIL_MIX_Qil_Js_32 = (ESP_TIL_MIX_Qil_Js_32*As2Al[32])) %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  # sum days
-  dplyr::group_by(dates) %>%
+                   dplyr::funs(.*0.25*1e4/1e3))|>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::group_by(dates) |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('ESP_TIL_MIX')),
-                      dplyr::funs(sum(., na.rm = TRUE))) %>%
+                      dplyr::funs(sum(., na.rm = TRUE))) |>
   # remove the zeroes generated previously
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_TIL_MIX')),
-                   dplyr::funs(replace(., . == 0, NA)))%>%
-  # cohorts transpiration per leaf area
-  dplyr::mutate(
-    E_PS = (rowSums(.[names(.)[c(2:23)]], na.rm = TRUE))/(rowSums(!is.na(.[names(.)[c(2:23)]]))),
-    E_QI = (rowSums(.[names(.)[c(24:29)]], na.rm = TRUE))/(rowSums(!is.na(.[names(.)[c(24:29)]]))),
-    Eplanttot = E_PS + E_QI
-  ) %>%
-  dplyr::select(dates, Eplanttot, E_PS, E_QI)
+                   dplyr::funs(replace(., . == 0, NA)))
+transp_data_temp$E_Ps <- rowMeans(transp_data_temp[,2:23], na.rm=TRUE)
+transp_data_temp$E_Qi <- rowMeans(transp_data_temp[,24:33], na.rm=TRUE)
+transp_data_temp2 <- transp_data_temp |>
+  dplyr::select(dates, E_Ps, E_Qi)
+names(transp_data_temp2)[2] <- paste0("E_",PS_cohname)
+names(transp_data_temp2)[3] <- paste0("E_",QI_cohname)
 
-measuredData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  dplyr::select(dates, swc_shallow) %>%
-  dplyr::group_by(dates) %>%
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) %>%
-  dplyr::left_join(transp_data_temp, by = 'dates') %>%
-  # dplyr::filter(Date > as.Date('2010-06-01') & Date <= as.Date('2013-12-31')) %>%
-  dplyr::mutate(Eplanttot = NA, SWC_err = NA) %>%
-  dplyr::select(dates, SWC, SWC_err, Eplanttot, E_PS, E_QI)
 
-measuredData<-as.data.frame(measuredData)
-row.names(measuredData) <- measuredData$dates
-
-prades_wp <- read.table("SourceData/Tables/Prades/TitllarWaterPotentials.csv",
-                        sep = ",", header = TRUE)
-
-wpData_PS <- prades_wp %>%
-  filter(Species=="Pinus sylvestris" & DefoliationClass=="ND") %>%
-  group_by(Timestamp2, Species) %>%
+wpData_PS <- prades_wp |>
+  dplyr::filter(Species=="Pinus sylvestris" & DefoliationClass=="ND") |>
+  dplyr::mutate(dates = as.Date(Timestamp2)) |>
+  dplyr::select(dates, WaterPotential.MD, WaterPotential.PD) |>
+  group_by(dates) |>
   summarize(PD_PS = mean(WaterPotential.PD, na.rm=T), PD_PS_err = sd(WaterPotential.PD, na.rm=T),
             MD_PS = mean(WaterPotential.MD, na.rm=T), MD_PS_err = sd(WaterPotential.MD, na.rm=T))
+names(wpData_PS)[2:5] = c(paste0("PD_", PS_cohname),
+                          paste0("PD_", PS_cohname, "_err"),
+                          paste0("MD_", PS_cohname),
+                          paste0("MD_", PS_cohname, "_err"))
 
-measuredData[as.character(wpData_PS$Timestamp2), paste0("PD_", PS_cohname)] = wpData_PS$PD_PS
-measuredData[as.character(wpData_PS$Timestamp2), paste0("PD_", PS_cohname,"_err")] = wpData_PS$PD_PS_err
-measuredData[as.character(wpData_PS$Timestamp2), paste0("MD_", PS_cohname)] = wpData_PS$MD_PS
-measuredData[as.character(wpData_PS$Timestamp2), paste0("MD_", PS_cohname,"_err")] = wpData_PS$MD_PS_err
-
-wpData_QI <- prades_wp %>%
-  filter(Species=="Quercus ilex") %>%
-  group_by(Timestamp2, Species) %>%
-  summarize(PD_QI = mean(WaterPotential.PD, na.rm=T), PD_QI_err = sd(WaterPotential.PD, na.rm=T),
-            MD_QI = mean(WaterPotential.MD, na.rm=T), MD_QI_err = sd(WaterPotential.MD, na.rm=T))
-measuredData[as.character(wpData_QI$Timestamp2), paste0("PD_", QI_cohname)] = wpData_QI$PD_QI
-measuredData[as.character(wpData_QI$Timestamp2), paste0("PD_", QI_cohname,"_err")] = wpData_QI$PD_QI_err
-measuredData[as.character(wpData_QI$Timestamp2), paste0("MD_", QI_cohname)] = wpData_QI$MD_QI
-measuredData[as.character(wpData_QI$Timestamp2), paste0("MD_", QI_cohname,"_err")] = wpData_QI$MD_QI_err
+wpData_QI <- prades_wp |>
+  dplyr::filter(Species=="Quercus ilex") |>
+  dplyr::mutate(dates = as.Date(Timestamp2)) |>
+  dplyr::select(dates, WaterPotential.MD, WaterPotential.PD) |>
+  group_by(dates) |>
+  summarize(PD_PS = mean(WaterPotential.PD, na.rm=T), PD_PS_err = sd(WaterPotential.PD, na.rm=T),
+            MD_PS = mean(WaterPotential.MD, na.rm=T), MD_PS_err = sd(WaterPotential.MD, na.rm=T))
+names(wpData_QI)[2:5] = c(paste0("PD_", QI_cohname),
+                          paste0("PD_", QI_cohname, "_err"),
+                          paste0("MD_", QI_cohname),
+                          paste0("MD_", QI_cohname, "_err"))
 
 names(measuredData)[5:14] = c(paste0("E_",c(PS_cohname, QI_cohname)),
                              paste0("PD_", PS_cohname),
@@ -360,12 +316,23 @@ names(measuredData)[5:14] = c(paste0("E_",c(PS_cohname, QI_cohname)),
                              paste0("PD_", QI_cohname, "_err"),
                              paste0("MD_", QI_cohname),
                              paste0("MD_", QI_cohname, "_err"))
-row.names(measuredData) <- NULL
 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-d = as.Date(meteoData$dates)
-meteoData <- meteoData[(d>="2011-01-01") & (d<"2011-12-31"),] #Select three years
+measuredData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::select(dates, swc_shallow) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) |>
+  dplyr::left_join(transp_data_temp2, by = 'dates') |>
+  dplyr::left_join(wpData_PS, by = 'dates') |>
+  dplyr::left_join(wpData_QI, by = 'dates')
+
+
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2010-04-29"),as.Date("2013-11-01"), by="day")
+evaluation_period <- seq(as.Date("2010-04-29"),as.Date("2013-11-01"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

@@ -37,11 +37,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("EucFACE",
             "Australia",
             site_md$si_code,
@@ -59,9 +61,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Eucalyptus trees in ambient (control) plots of a CO2 enrichment experiment",
             stand_md$st_lai,
+            "10.1111/1365-2435.12532",
             "Eucalyptus tereticornis",
+            "SpParamsAU",
             "2012-2014",
-            "10.1111/1365-2435.12532")
+            "2012-2014")
 )
 
 
@@ -81,8 +85,8 @@ treeData <- data.frame(
   DBH = 21, #?
   Height = 100*stand_md$st_height,
   N = stand_md$st_density,
-  Z50 = NA,
-  Z95 = NA,
+  Z50 = 200,
+  Z95 = 3000,
   LAI = stand_md$st_lai
 )
 f <-emptyforest()
@@ -123,7 +127,9 @@ soilData <- data.frame(
   sand = c(61.86667, 52.46667, 52.73750,53.30000),
   om = c(1.8700000, 0.6566667, 0.6912500, 0.5600000),
   bd = c(1.246667, 1.313333,1.331250,1.350000),
-  rfc = c(6.566667,9.200000,9.600000,50)
+  rfc = c(6.566667,20,20,90),
+  VG_theta_res = rep(0.03, 4),
+  VG_theta_sat = rep(0.4, 4)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -181,10 +187,12 @@ customParams <- data.frame(
   Gs_slope = NA,
   Al2As = NA) 
 
-Al2As_sp <- SpParamsAU$Al2As[SpParamsAU$Name=="Eucalyptus"] # m2/m2
+# Al2As_sp <- mean(SpParamsAU$Al2As[SpParamsAU$Genus=="Eucalyptus"], na.rm=TRUE) # m2/m2
+Al2As_sp <- 6896.552 # Atwell et al 2007
 # Al2As_sp <- SpParamsAU$Al2As[SpParamsAU$Name=="Eucalyptus tereticornis"] # m2/m2
 customParams$Al2As <- Al2As_sp
-
+customParams$Vmax298 <- 91
+customParams$Jmax298 <- 159
 # 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en cm3 cm-2 h-1 y el timestep es 30 minutos, 
 # cal dividir per 2 (per tenir flow en els 30 min),
@@ -255,13 +263,7 @@ measuredData <- env_data |>
   dplyr::left_join(transp_data_temp2, by = 'dates') |>
   dplyr::left_join(psiData, by = 'dates')
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-# evaluation_period <- seq(as.Date("2010-01-01"),as.Date("2010-12-01"), by="day")
-# measuredData <- measuredData |> filter(dates %in% evaluation_period)
-# meteoData <- meteoData |> filter(dates %in% evaluation_period)
-# row.names(meteoData) <- NULL
-# row.names(measuredData) <- NULL
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
@@ -273,7 +275,7 @@ remarks <- data.frame(
   Remark = c('Taken from SoilGrids',
              'No understory or secondary species considered. 10% Herbaceous cover',
              'CO2 set to 390 ppm',
-             'Species-wise Huber value used for scaling',
+             'Species-level Huber value used for scaling',
              'Variables taken: LE_CORR and GPP_NT_VUT_REF')
 )
 
