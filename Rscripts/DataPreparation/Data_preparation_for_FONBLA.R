@@ -22,11 +22,8 @@ env_data2017 <- read_xlsx("SourceData/Tables/fontblanche/meteofontblanche.xlsx",
 env_data2018 <- read_xlsx("SourceData/Tables/fontblanche/meteofontblanche.xlsx", sheet = "2018")
 sapf_data2014 <-read_xlsx("SourceData/Tables/fontblanche/2014_TD_sap_velocity_water_potential.xlsx")
 plant_md <- read.csv('SourceData/Tables/fontblanche/TD.csv', sep=" ")
+fluxnet_data <- read.csv('SourceData/Tables/fontblanche/FR-FBn_2016_2022.csv')
 
-
-QI_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Quercus ilex"]
-PL_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Phillyrea latifolia"]
-PH_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Pinus halepensis"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -45,11 +42,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Font-Blanche",
             "France",
             "",
@@ -67,9 +66,11 @@ siteData <- data.frame(
             722,
             "Mixed forest with P. halepensis and Q. ilex",
             2.0,
+            "10.1016/j.agrformet.2021.108472",
             "Quercus ilex, Pinus halepensis, Phillyrea latifolia",
+            "SpParamsFR",
             "2014",
-            "10.1016/j.agrformet.2021.108472")
+            "2014")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -168,7 +169,7 @@ for(i in 1:nrow(env_data)) {
   vps_Tmax[i] = meteoland::utils_saturationVP(env_data$Ta_max[i])
 }
 vpa = vps_Tmean*env_data$Rh_mean/100
-meteoData <- data.frame(dates = dates,
+meteoData <- data.frame(dates = as.Date(dates),
                         MeanTemperature = env_data$Ta_mean,
                         MinTemperature = env_data$Ta_min,
                         MaxTemperature = env_data$Ta_max,
@@ -181,8 +182,11 @@ meteoData <- data.frame(dates = dates,
 meteo_sel = complete.cases(meteoData)
 meteoData <- meteoData[meteo_sel,]
 
-
 # 9. CUSTOM PARAMS --------------------------------------------------------
+QI_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Quercus ilex"]
+PL_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Phillyrea latifolia"]
+PH_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Pinus halepensis"]
+
 PL_cohname = paste0("T1_", PL_index)
 PH_cohname = paste0("T2_", PH_index)
 QI_cohname = paste0("T3_", QI_index)
@@ -293,10 +297,8 @@ customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 
 
 # 10. MEASURED DATA --------------------------------------------------------
-measuredData<-data.frame(dates = dates, 
-                         SWC = env_data$RE_TD/100, 
-                         SWC.err = NA,
-                         ETR = env_data$ETR)
+measuredData<-data.frame(dates = as.Date(dates), 
+                         SWC = env_data$RE_TD/100)
 row.names(measuredData)<- measuredData$dates
 measuredData <- measuredData[meteo_sel,]
 measuredData[as.character(sapf_data2014$doy), paste0("E_", PH_cohname)] = as.numeric(sapf_data2014$Mean_Sapflow_velocity_Pinus_halepensis_TD)
@@ -313,21 +315,30 @@ measuredData[as.character(sapf_data2014$doy), paste0("MD_", QI_cohname)] = as.nu
 measuredData[as.character(sapf_data2014$doy), paste0("MD_", QI_cohname, "_err")] = as.numeric(sapf_data2014$SD_Quercus_ilex_PMIN_TD)
 row.names(measuredData)<-NULL
 
+fluxData <- fluxnet_data |>
+  dplyr::mutate(dates = as.Date(DateTime)) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(LE = mean(LE_F, na.rm=TRUE)) |>
+  dplyr::mutate(LE = (3600*24/1e6)*LE) 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-d = as.Date(meteoData$dates)
-meteoData <- meteoData[(d>="2014-01-01") & (d<="2014-12-31"),] #Select years
-measuredData <- measuredData[(d>="2014-01-01") & (d<="2014-12-31"),] #Select years
+measuredData <- measuredData |>
+  dplyr::left_join(fluxData, by="dates")
 
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2014-01-01"),as.Date("2018-12-31"), by="day")
+evaluation_period <- seq(as.Date("2014-01-01"),as.Date("2018-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
 
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
-  Remark = c('',
-             '')
+            'Vegetation',
+            'Weather'),
+  Remark = c('Equal to Puechabon',
+             '',
+             'Missing values for some dates')
 )
 
 

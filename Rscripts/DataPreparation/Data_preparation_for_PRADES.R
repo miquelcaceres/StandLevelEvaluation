@@ -337,9 +337,11 @@ measuredData <- measuredData |> filter(dates %in% evaluation_period)
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
+            'Vegetation',
+            'Sapflow'),
   Remark = c('Additional rocky layer considered',
-             'Understory not considered')
+             'Understory not considered',
+             'No scaling required (already per leaf area)')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------

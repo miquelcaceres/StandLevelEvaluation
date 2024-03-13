@@ -40,7 +40,7 @@ siteData <- data.frame(
                 'Species simulated',
                 'Period simulated',
                 'Description DOI'),
-  Value = c("Morgan Mornoe state forest",
+  Value = c("Morgan-Mornoe",
             "USA",
             site_md$si_code,
             "Koong Yi (Indiana University Bloomington)",

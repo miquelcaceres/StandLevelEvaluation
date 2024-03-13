@@ -5,6 +5,7 @@ library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsAU")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -35,11 +36,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Wombat",
             "Australia",
             site_md$si_code,
@@ -57,9 +60,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Mixed eucalyptus forest",
             stand_md$st_lai,
+            "10.1016/j.foreco.2016.12.017",
             "Eucalyptus obliqua, E. radiata, E. rubida",
+            "SpParamsAU",
             "2013-2015",
-            "10.1016/j.foreco.2016.12.017")
+            "2013-2015")
 )
 
 
@@ -237,13 +242,11 @@ measuredData <- env_data |>
 #   dplyr::left_join(fluxData, by = 'dates') |>
 #   dplyr::left_join(transp_data_temp2, by = 'dates') 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2013-01-01"),as.Date("2015-11-01"), by="day")
 evaluation_period <- seq(as.Date("2013-01-01"),as.Date("2015-11-01"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
@@ -255,7 +258,7 @@ remarks <- data.frame(
   Remark = c('Taken from SoilGrids',
              'No understory or secondary species considered.',
              '',
-             'Species-wise Huber value used for scaling',
+             'Species-level Huber value used for scaling',
              'Variables taken: LE_CORR and GPP_NT_VUT_REF')
 )
 
