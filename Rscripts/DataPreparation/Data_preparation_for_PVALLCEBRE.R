@@ -1,11 +1,12 @@
 ## Vallcebre Cal Sort data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/VallcebreSort/ESP_VAL_SOR_env_data.csv')
@@ -95,7 +96,7 @@ shrubData <- data.frame(
 f = emptyforest()
 f$treeData = treeData
 f$shrubData = shrubData
-summary(f, SpParamsMED)
+summary(f, SpParamsES)
 
 
 # 5. SEED DATA ------------------------------------------------------------
@@ -104,7 +105,7 @@ summary(f, SpParamsMED)
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'PVALLCEBRE',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 5, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )
@@ -173,8 +174,8 @@ meteoData <- dplyr::full_join(meteoDataInt2003[!(meteoDataInt2003$dates %in% met
   dplyr::arrange(dates)
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
-PS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus sylvestris"]
-BS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Buxus sempervirens"]
+PS_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus sylvestris"]
+BS_index = SpParamsES$SpIndex[SpParamsES$Name=="Buxus sempervirens"]
 PS_cohname = paste0("T1_", PS_index)
 BS_cohname = paste0("S1_", BS_index)
 ps <- 1

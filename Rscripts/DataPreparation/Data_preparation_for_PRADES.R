@@ -1,11 +1,12 @@
 ## Prades data script
 library(medfate)
+library(medfateutils)
 library(dplyr)
 library(lubridate)
 library(meteoland)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Prades/ESP_TIL_MIX_env_data.csv')
@@ -66,8 +67,8 @@ terrainData <- data.frame(
 )
 
 # 3. TREE DATA ------------------------------------------------------------
-QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
-PS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus sylvestris"]
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
+PS_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus sylvestris"]
 
 treeData <- data.frame(
   Species = c("Pinus sylvestris", "Quercus ilex"),
@@ -81,9 +82,9 @@ treeData <- data.frame(
 
 f = emptyforest()
 f$treeData = treeData
-vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
-vprofile_rootDistribution(f, SpParams = SpParamsMED)
-summary(f, SpParamsMED)
+vprofile_leafAreaDensity(f, SpParamsES, draw=T)
+vprofile_rootDistribution(f, SpParams = SpParamsES)
+summary(f, SpParamsES)
 
 # 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info
@@ -102,7 +103,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'PRADES',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 10, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )

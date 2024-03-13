@@ -1,9 +1,11 @@
 ## GB Griffin Forest data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsFR")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------

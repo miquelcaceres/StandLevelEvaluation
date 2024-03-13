@@ -1,11 +1,12 @@
 ## Vallcebre Cal Barrol data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/VallcebreBarrol/ESP_VAL_BAR_env_data.csv')
@@ -95,7 +96,7 @@ shrubData <- data.frame(
 f = emptyforest()
 f$treeData = treeData
 f$shrubData = shrubData
-summary(f, SpParamsMED)
+summary(f, SpParamsES)
 
 # 5. SEED DATA ------------------------------------------------------------
 # there is no seed info
@@ -103,7 +104,7 @@ summary(f, SpParamsMED)
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'QVALLCEBRE',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 5, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )
@@ -171,8 +172,8 @@ meteoData <- dplyr::full_join(meteoDataInt2003[!(meteoDataInt2003$dates %in% met
   dplyr::arrange(dates)
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
-QP_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus pubescens"]
-BS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Buxus sempervirens"]
+QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pubescens"]
+BS_index = SpParamsES$SpIndex[SpParamsES$Name=="Buxus sempervirens"]
 QP_cohname = paste0("T1_", QP_index)
 BS_cohname = paste0("S1_", BS_index)
 qp <- 1

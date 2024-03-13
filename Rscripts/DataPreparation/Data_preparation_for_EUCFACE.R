@@ -1,9 +1,11 @@
 ## EucFACE data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsAU")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------

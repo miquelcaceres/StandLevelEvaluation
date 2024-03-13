@@ -1,11 +1,12 @@
 ## Mitra Q. ilex data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Mitra/PRT_MIT_env_data.csv')
@@ -14,7 +15,11 @@ env_md <- read.csv('SourceData/Tables/Mitra/PRT_MIT_env_md.csv')
 site_md <- read.csv('SourceData/Tables/Mitra/PRT_MIT_site_md.csv')
 stand_md <- read.csv('SourceData/Tables/Mitra/PRT_MIT_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Mitra/PRT_MIT_plant_md.csv')
-
+flux_data <- dplyr::bind_rows(
+  read.csv('SourceData/Tables/Mitra/EFDC_L2_Flx_PTMi1_2001_v01_30m.txt'),
+  read.csv('SourceData/Tables/Mitra/EFDC_L2_Flx_PTMi1_2002_v01_30m.txt'),
+  read.csv('SourceData/Tables/Mitra/EFDC_L2_Flx_PTMi1_2003_v03_30m.txt')
+)
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -33,11 +38,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Mitra II",
             "Portugal",
             "PRT_MIT",
@@ -54,10 +61,12 @@ siteData <- data.frame(
             round(site_md$si_mat,1),
             round(site_md$si_map),
             "Evergreen forest dominated by Quercus ilex subsp. rotundifolia",
-            stand_md$st_lai,
+            paste0(stand_md$st_lai, " (trees)"),
+            "10.1093/treephys/27.6.793",
             "Quercus ilex",
+            "SpParamsES",
             "2001-2003",
-            "10.1093/treephys/27.6.793")
+            "2001-2003")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -242,31 +251,34 @@ transp_data_temp2<-data.frame(dates = transp_data_temp$dates,
                               E_QI = rowMeans(transp_data_temp[,-1], na.rm=TRUE))
 names(transp_data_temp2)[2] = paste0("E_", QI_cohname)
 
-# fluxData <- fluxnet_data |>
-#   dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
-#                 GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
-#   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-#   dplyr::select(dates, LE_CORR, GPP_NT_VUT_REF) |>
-#   dplyr::mutate(LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
-#                 GPP = GPP_NT_VUT_REF) |>
-#   dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
-
+# fluxData <- flux_data |>
+#   dplyr::mutate(SWC = replace(SWC, SWC==-9999, NA)) |>
+#   dplyr::mutate(dates = as.Date(substr(as.character(TIMESTAMP_START),1,8), format = "%Y%m%d")) |>
+#   dplyr::group_by(dates) |>
+#   dplyr::summarise(LE = mean(LE, na.rm = TRUE))
+# 
+# measuredData <- transp_data_temp2 |>
+#   dplyr::left_join(fluxData, by="dates")
 measuredData <- transp_data_temp2
 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2001-01-01"),as.Date("2003-12-31"), by="day")
 evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2003-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
+
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
-  Remark = c('Adjusted theta_res and theta_sat',
-             'No understory but 100% herbaceous cover')
+            'Vegetation',
+            'Soil moisture data',
+            'Eddy covariance data'),
+  Remark = c('Taken from SoilGrids',
+             'No understory but 100% herbaceous cover',
+             'Not available',
+             'Not enough quality for evaluation')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------

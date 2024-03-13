@@ -1,11 +1,12 @@
 ## Israel P. halepensis data script
 library(medfate)
+library(medfateutils)
 library(dplyr)
 library(lubridate)
 library(meteoland)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Yatir/ISR_YAT_YAT_env_data.csv')
@@ -16,6 +17,7 @@ stand_md <- read.csv('SourceData/Tables/Yatir/ISR_YAT_YAT_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Yatir/ISR_YAT_YAT_plant_md.csv')
 yat_meteo <- read.table("SourceData/Tables/Yatir/Yatir_Climate_ForSurEau_2010_2022.csv", 
            sep = ";", header = TRUE, dec=",")
+fluxnet_data <- read.csv('SourceData/Tables/Yatir/FLX_IL-Yat_FLUXNET2015_FULLSET_DD_2000-2020_beta-3.csv')
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -34,31 +36,35 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Yatir",
             "Israel",
             "ISR_YAT_YAT",
-            "Fyodor Tatarinov (WIS)",
-            "",
-            "",
+            "Fyodor Tatarinov (Weizmann Institute of Science)",
+            "IL-Yat",
+            "Dan Yakir (Weizmann Institute of Science)",
             site_md$si_lat,
             site_md$si_long,
             site_md$si_elev,
             0,
             0,
-            "",
+            "Chalk and limestone",
             "Clay loam",
             round(site_md$si_mat,1),
             round(site_md$si_map),
             "Pinus halepensis managed plantation",
             1.5,
+            "10.1111/nph.13597",
             "Pinus halepensis",
+            "SpParamsES",
             "2014-2015",
-            "10.1111/nph.13597")
+            "2014-2015")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -71,7 +77,7 @@ terrainData <- data.frame(
 )
 
 # 3. TREE DATA ------------------------------------------------------------
-PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
+PH_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus halepensis"]
 treeData <- data.frame(
   Species = "Pinus halepensis",
   DBH = 19.8, # from paper
@@ -83,9 +89,9 @@ treeData <- data.frame(
 )
 f = emptyforest()
 f$treeData = treeData
-vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
-vprofile_rootDistribution(f, SpParams = SpParamsMED)
-summary(f, SpParamsMED)
+vprofile_leafAreaDensity(f, SpParamsES, draw=T)
+vprofile_rootDistribution(f, SpParams = SpParamsES)
+summary(f, SpParamsES)
 
 # 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info at the moment
@@ -103,14 +109,14 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ISRYAT',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 0, herbHeight = 0,
   Validation = 'global_transp', Definitive = 'No'
 )
 
 # 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
-  widths = c(200, 300, 3000),
+  widths = c(200, 300, 3500),
   sand = rep(31, 3),
   clay = rep(28, 3),
   om = c(6,3,1),
@@ -141,14 +147,32 @@ meteoData <- yat_meteo |>
   rename(dates = DATE,
          MinTemperature = Tair_min,
          MaxTemperature = Tair_max,
-         MeanTemperature = Tair_mean,
          Radiation = RG_sum,
          Precipitation = PPT_sum,
          MinRelativeHumidity = RHair_min,
          MaxRelativeHumidity = RHair_max,
-         MeanRelativeHumidity = RHair_mean,
          WindSpeed = WS_mean) |>
-  mutate(dates = as.Date(dates, format = "%d/%m/%Y"))
+  mutate(dates = as.Date(dates, format = "%d/%m/%Y")) |>
+  select(dates, MinTemperature, MaxTemperature, Radiation, Precipitation, 
+         MinRelativeHumidity, MaxRelativeHumidity, WindSpeed)
+
+# meteoData1 <- fluxnet_data_hourly |>
+#   dplyr::mutate(RH = replace(RH, RH==-9999, NA)) |>
+#   dplyr::mutate(dates = as.Date(substr(as.character(TIMESTAMP_START),1,8), format = "%Y%m%d")) |>
+#   dplyr::group_by(dates) |>
+#   dplyr::summarise(MinTemperature = min(TA_F, na.rm = TRUE),
+#                    MaxTemperature = max(TA_F, na.rm = TRUE),
+#                    MinRelativeHumidity = min(RH, na.rm = TRUE),
+#                    MaxRelativeHumidity = max(RH, na.rm = TRUE),
+#                    Radiation = (sum((SW_IN_F * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+#                    Precipitation = sum(P_F, na.rm = TRUE),
+#                    WindSpeed = mean(WS_F, na.rm = TRUE)) |>
+#   dplyr::mutate(Radiation = Radiation*3600*24/1000000) |>
+#   dplyr::mutate_at(dplyr::vars(2:5),
+#                    dplyr::funs(replace(., is.infinite(.), NA))) |>
+#   dplyr::mutate_at(dplyr::vars(2:5),
+#                    dplyr::funs(replace(., is.nan(.), NA))) 
+
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
 PH_cohname = paste0("T1_", PH_index)
@@ -223,59 +247,63 @@ customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 
 
 # 10. MEASURED DATA --------------------------------------------------------
-# No tenemos area del plot, navegando entre referencias del artículo
-# (Biogeochemical factors contributing to enhanced carbon storage following
-# afforestation of a semi-arid shrubland && Water limitation to soil CO2 efflux
-# in a pine forest at the semiarid “timberline”)
-# vemos que son cinco plots de 30x30m, lo que hace un área de 30x30x5 = 4500m2
-# N
-N_real <- (treeData[['N']]*4500)/10000
-
 # sapflow data, está en dm3/h, y el timestep es 30 minutos, así que si dividimos
-# entre dos ya tenemos los L en esa media hora. sumamos todo el día y luego
-# multiplicamos por le numero total de arboles y dividimos por los arboles medidos
-# y el area de la parcela
-transp_data_temp <- sapf_data %>%
+# entre dos ya tenemos los L en esa media hora. sumamos todo el día y 
+# promediamos entre arboles. a continuación multiplicamos por la densidad de la parcela
+# y dividimos por el LAI para obtener el valor por superficie de hoja
+transp_data_temp <- sapf_data |>
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ISR_YAT_YAT')),
-                   dplyr::funs(./2)) %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
+                   dplyr::funs(./2)) |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   # sum days
-  dplyr::group_by(dates) %>%
+  dplyr::group_by(dates) |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('ISR_YAT_YAT')),
-                      dplyr::funs(sum(., na.rm = TRUE))) %>%
+                      dplyr::funs(sum(., na.rm = TRUE))) |>
   # remove the zeroes generated previously
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ISR_YAT_YAT')),
-                   dplyr::funs(replace(., . == 0, NA))) %>%
-  dplyr::mutate(Eplanttot = (rowSums(.[names(.)[-1]], na.rm = TRUE) * N_real)/(4500*rowSums(!is.na(.[names(.)[-1]]))),
-                E_T1_148 = Eplanttot) %>%
-  dplyr::select(dates, Eplanttot, E_T1_148)
+                   dplyr::funs(replace(., . == 0, NA)))
+transp_data_temp$E_Ph <- rowMeans(transp_data_temp[,2:25], na.rm=TRUE)
+transp_data_temp2 <- transp_data_temp |>
+  dplyr::select(dates, E_Ph) |>
+  dplyr::mutate(E_Ph = E_Ph*(stand_md$st_density/(stand_md$st_lai*10000)))
+names(transp_data_temp2)[2] <- paste0("E_",PH_cohname)
 
-measuredData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  dplyr::select(dates, swc_shallow, swc_deep) %>%
-  dplyr::group_by(dates) %>%
+fluxData <- fluxnet_data |>
+  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
+                GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
+  dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
+  dplyr::select(dates, LE_CORR, GPP_NT_VUT_REF) |>
+  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
+                GPP = GPP_NT_VUT_REF) |>
+  dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
+
+measuredData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::select(dates, swc_shallow, swc_deep) |>
+  dplyr::group_by(dates) |>
   dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)/100, # soil water content in env_data as %
-                   SWC_2 = mean(swc_deep, na.rm = TRUE)/100) %>%
-  dplyr::left_join(transp_data_temp, by = 'dates') %>%
-  dplyr::mutate(SWC_err = NA) %>%
-  dplyr::select(dates, SWC, SWC_err, SWC_2, Eplanttot, E_T1_148) |>
-  dplyr::filter(!is.na(dates))
+                   SWC_2 = mean(swc_deep, na.rm = TRUE)/100) |>
+  dplyr::select(dates, SWC, SWC_2) |>
+  dplyr::left_join(transp_data_temp2, by = 'dates') |>
+  dplyr::left_join(fluxData, by = 'dates') |>
+  dplyr::filter(!is.na(dates)) |>
+  dplyr::arrange(dates)
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-evaluation_period <- seq(as.Date("2014-01-01"),as.Date("2015-02-04"), by="day")
-measuredData <- measuredData |> filter(dates %in% evaluation_period)
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2014-01-01"),as.Date("2014-12-31"), by="day")
+evaluation_period <- seq(as.Date("2014-01-01"),as.Date("2014-12-31"), by="day")
+measuredData <- measuredData |> filter(dates %in% simulation_period)
 meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
-summary(measuredData)
-summary(meteoData)
+
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
-  Remark = c('50-cm soil with rocky layers. Modification of theta_res',
-             'No understory considered')
+            'Vegetation',
+            'Sapflow'),
+  Remark = c('50-cm soil with rocky layers. Modification of theta_res and theta_sat',
+             'No understory considered',
+             'Scaling done using stand density and stand LAI')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------

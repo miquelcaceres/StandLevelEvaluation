@@ -1,10 +1,11 @@
 ## Rinconada Q pyrenaica data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Rinconada/ESP_RIN_env_data.csv')
@@ -16,7 +17,7 @@ plant_md <- read.csv('SourceData/Tables/Rinconada/ESP_RIN_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Rinconada/ESP_RIN_species_md.csv')
 swc_esprin <- readxl::read_xlsx('SourceData/Tables/Rinconada/ESP_RIN_SWC.xlsx')
 
-QP_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus pyrenaica"]
+QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pyrenaica"]
 
 
 # 1. SITE INFORMATION -----------------------------------------------------
@@ -100,7 +101,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ESPRIN',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 5, herbHeight = 10,
   Validation = 'global', Definitive = 'Yes'
 )

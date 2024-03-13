@@ -1,5 +1,6 @@
 ## Switzerland Lotschental data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)

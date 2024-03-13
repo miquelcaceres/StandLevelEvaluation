@@ -1,10 +1,11 @@
 ## Alto Tajo (ARMALLONES) mixed forest
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
-data("SpParamsMED")
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_env_data.csv')
@@ -16,9 +17,9 @@ plant_md <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_species_md.csv')
 
 
-PN_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus nigra"]
-QF_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus faginea"]
-QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
+PN_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus nigra"]
+QF_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus faginea"]
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -91,7 +92,7 @@ treeData <- data.frame(
 )
 f = emptyforest()
 f$treeData = treeData
-treeData$LAI <- species_LAI(f, SpParamsMED)
+treeData$LAI <- species_LAI(f, SpParamsES)
 treeData$LAI <- treeData$LAI*(1.09/sum(treeData$LAI)) ## CORRECT LAI = 1.09
 
 
@@ -111,7 +112,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'ESPALTARM',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 10, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )

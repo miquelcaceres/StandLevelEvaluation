@@ -1,11 +1,12 @@
 ## Puechabon Q. ilex data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsFR")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Puechabon/FRA_PUE_env_data.csv')
@@ -18,8 +19,8 @@ fluxnet_data <- read.csv('SourceData/Tables/Puechabon/FLX_FR-Pue_FLUXNET2015_SUB
 pue_meteo <- readr::read_delim("SourceData/Tables/Puechabon/Climat_Puechabon_site.csv", 
                         delim = ";", escape_double = FALSE, trim_ws = TRUE)
 
-QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
-BS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Buxus sempervirens"]
+QI_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Quercus ilex"]
+BS_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Buxus sempervirens"]
 
 
 # 1. SITE INFORMATION -----------------------------------------------------
@@ -39,11 +40,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Evaluation period',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Puéchabon",
             "France",
             "FRA_PUE",
@@ -61,9 +64,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Dense evergreen forest dominated by Q. ilex",
             2.0,
+            "10.1111/j.1365-2486.2009.01852.x",
             "Quercus ilex, Buxus sempervirens",
+            "SpParamsFR",
             "2004-2006",
-            "10.1111/j.1365-2486.2009.01852.x")
+            "2004-2006")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -101,7 +106,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FRAPUE',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsFR",
   herbCover = 10, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )
@@ -153,9 +158,6 @@ meteoData <- pue_meteo |>
 #   dplyr::mutate_at(dplyr::vars(dplyr::ends_with('Speed')),
 #                    dplyr::funs(replace(., is.nan(.), NA)))
 
-meteoData <- as.data.frame(meteoData)
-meteoData<-meteoData[!is.na(meteoData$dates),]
-row.names(meteoData) <-meteoData$dates
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
@@ -318,6 +320,10 @@ fluxData <- fluxnet_data |>
                 GPP = GPP_NT_VUT_REF) |>
   dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
 
+wpData <- read_xlsx("SourceData/Tables/Puechabon/FRA_PUE_WaterPotentials.xlsx") |>
+  dplyr::mutate(Date = as.Date(Date)) |>
+  dplyr::rename(dates = Date)
+
 measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')))  |>
   dplyr::select(dates, swc_shallow)  |>
@@ -327,25 +333,20 @@ measuredData <- env_data |>
   dplyr::filter(dates > as.Date('2002-12-31') & dates < as.Date('2016-01-01')) %>%
   dplyr::mutate(SWC_err = NA)  |>
   dplyr::select(dates, SWC, SWC_err, E_QI, E_BS) |>
-  dplyr::left_join(fluxData, by="dates")
+  dplyr::left_join(fluxData, by="dates")|>
+  dplyr::left_join(wpData, by="dates")
 
-measuredData<-as.data.frame(measuredData)
-row.names(measuredData) <- measuredData$dates
 names(measuredData)[4:5] <- paste0("E_",c(QI_cohname, BS_cohname))
+names(measuredData)[8] <- paste0("PD_", QI_cohname)
+names(measuredData)[9] <- paste0("PD_", QI_cohname, "_err")
+names(measuredData)[10] <- paste0("MD_", QI_cohname)
+names(measuredData)[11] <- paste0("MD_", QI_cohname, "_err")
 
-wpData <- read_xlsx("SourceData/Tables/Puechabon/FRA_PUE_WaterPotentials.xlsx")
-measuredData[as.character(wpData$Date), paste0("PD_", QI_cohname)] = wpData$PD
-measuredData[as.character(wpData$Date), paste0("PD_", QI_cohname, "_err")] = wpData$PD_err
-measuredData[as.character(wpData$Date), paste0("MD_", QI_cohname)] = wpData$MD
-measuredData[as.character(wpData$Date), paste0("MD_", QI_cohname, "_err")] = wpData$MD_err
-
-
-# 11. EVALUATION PERIOD ---------------------------------------------------
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2004-01-01"),as.Date("2006-12-31"), by="day")
 evaluation_period <- seq(as.Date("2004-01-01"),as.Date("2006-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(

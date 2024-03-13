@@ -1,11 +1,12 @@
 ## FRAHES data script
 library(medfate)
+library(medfateutils)
 library(dplyr)
 library(lubridate)
 library(meteoland)
 library(readxl)
 
-data("SpParamsMED")
+data("SpParamsFR")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/Hesse/FRA_HES_HE2_NON_env_data.csv')
@@ -42,20 +43,22 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Hesse",
             "France",
             "FRA_HES_HE2_NON",
             "André Granier (INRAE)",
             "FR-Hes",
             "Matthias Cuntz (INRAE)",
-            48.6742,
-            7.0647,
-            300,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
+            site_md$si_elev,
             0,
             0,
             "",
@@ -63,22 +66,24 @@ siteData <- data.frame(
             round(site_md$si_mat,1),
             round(site_md$si_map),
             "Naturally regenerated, managed beech forest",
-            5,
+            7,
+            "10.1051/forest:2008052",
             "Fagus sylvatica",
-            "2001-2005",
-            "10.1051/forest:2008052")
+            "SpParamsFR",
+            "2001-2004",
+            "2001-2004")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
 terrainData <- data.frame(
-  latitude = 48.6742,
-  elevation = 300,
+  latitude = site_md$si_lat,
+  elevation = site_md$si_elev,
   aspect = 0, # Flat
   slope = 0 # < 2% slope
 )
 
 # 3. TREE DATA ------------------------------------------------------------
-FS_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Fagus sylvatica"]
+FS_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Fagus sylvatica"]
 treeData <- data.frame(
   Species = "Fagus sylvatica", 
   DBH = mean(plant_md[['pl_dbh']]),
@@ -86,13 +91,13 @@ treeData <- data.frame(
   N = 3203, # paper para el año 2001.
   Z50 = 300,  # datos que luego se modificaran por la optimización
   Z95 = 1200,  # datos que luego se modificaran por la optimización
-  LAI = 5
+  LAI = 7 # From Granier's paper for 2001-2004
 )
 f = emptyforest()
 f$treeData = treeData
-vprofile_leafAreaDensity(f, SpParamsMED, draw=T)
-vprofile_rootDistribution(f, SpParams = SpParamsMED)
-summary(f, SpParamsMED)
+vprofile_leafAreaDensity(f, SpParamsFR, draw=T)
+vprofile_rootDistribution(f, SpParams = SpParamsFR)
+summary(f, SpParamsFR)
 
 # 4. SHRUB DATA -----------------------------------------------------------
 # there is no shrub info at the moment
@@ -111,18 +116,18 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FRAHES',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsFR",
   herbCover = 5, herbHeight = 20,
   Validation = 'global', Definitive = 'No'
 )
 
 # 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
-  widths = c(200, 300, 700, 1000),
+  widths = c(200, 300, 700, 2100),
   sand = c(8, 8,8,8),
   clay = c(25,35,45,45),
   om = c(6,3,1,0),
-  rfc = c(9, 13, 15, 95),
+  rfc = c(9, 13, 15, 90),
   bd = c(1.16, 1.37, 1.58, 1.58),
   VG_theta_sat = c(0.5528318,0.5044341,0.4560364,0.4560364)
 )
@@ -183,37 +188,37 @@ customParams <- data.frame(
   Gs_slope = NA,
   Al2As = NA) 
 
-
+Al2As_sp <- 2076.12
+customParams$Al2As <- Al2As_sp
 
 # 10. MEASURED DATA --------------------------------------------------------
-# N
-N_real <- (treeData[['N']]*6000)/10000
-
-# sapflow data, está en dm3/dm2 h, y el timestep es 30 minutos, así que si dividimos
-# entre dos ya tenemos los L en esa media hora. Además, es sapflow relativo a sapwood area por
-# tanto, multiplicamos por el sapwood area pasado de cm2 a dm2
-# Sumamos todo el día y luego multiplicamos por le numero total de arboles y dividimos por los arboles medidos
-# y el area de la parcela
+# sapflow data, está en cm3 cm-2 h-1, y el timestep es 30 minutos, 
+# cal dividir per 2 (per tenir flow en els 30 min), multiplicar per As2Al (cm2/m2), 
+# multiplicar per 0.001 (per passar a de cm3 a dm3)
+# Sumamos todo el día 
+sapflow_factor <- 0.5/1000
 transp_data_temp <- sapf_data |>
-  dplyr::mutate(FRA_HES_HE2_NON_Fsy_Js_1 = (FRA_HES_HE2_NON_Fsy_Js_1*plant_md[['pl_sapw_area']][1])/200,
-                FRA_HES_HE2_NON_Fsy_Js_2 = (FRA_HES_HE2_NON_Fsy_Js_2*plant_md[['pl_sapw_area']][2])/200,
-                FRA_HES_HE2_NON_Fsy_Js_3 = (FRA_HES_HE2_NON_Fsy_Js_3*plant_md[['pl_sapw_area']][3])/200,
-                FRA_HES_HE2_NON_Fsy_Js_4 = (FRA_HES_HE2_NON_Fsy_Js_4*plant_md[['pl_sapw_area']][4])/200,
-                FRA_HES_HE2_NON_Fsy_Js_5 = (FRA_HES_HE2_NON_Fsy_Js_5*plant_md[['pl_sapw_area']][5])/200,
-                FRA_HES_HE2_NON_Fsy_Js_6 = (FRA_HES_HE2_NON_Fsy_Js_6*plant_md[['pl_sapw_area']][6])/200,
-                FRA_HES_HE2_NON_Fsy_Js_7 = (FRA_HES_HE2_NON_Fsy_Js_7*plant_md[['pl_sapw_area']][7])/200,
-                FRA_HES_HE2_NON_Fsy_Js_8 = (FRA_HES_HE2_NON_Fsy_Js_8*plant_md[['pl_sapw_area']][8])/200,
-                FRA_HES_HE2_NON_Fsy_Js_9 = (FRA_HES_HE2_NON_Fsy_Js_9*plant_md[['pl_sapw_area']][9])/200,
-                FRA_HES_HE2_NON_Fsy_Js_10 = (FRA_HES_HE2_NON_Fsy_Js_10*plant_md[['pl_sapw_area']][10])/200) |>
+  dplyr::mutate(FRA_HES_HE2_NON_Fsy_Js_1 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_1/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_2 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_2/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_3 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_3/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_4 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_4/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_5 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_5/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_6 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_6/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_7 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_7/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_8 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_8/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_9 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_9/(Al2As_sp[1]/10000),
+                FRA_HES_HE2_NON_Fsy_Js_10 = sapflow_factor*FRA_HES_HE2_NON_Fsy_Js_10/(Al2As_sp[1]/10000)) |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>  
   dplyr::filter(!is.na(dates)) |>
   dplyr::group_by(dates) |># sum days
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('FRA_HES_HE2_NON')),
-                      list(. = sum, sum = ~ sum(.x, na.rm = TRUE)))
-transp_data_temp$Eplanttot <- rowSums(transp_data_temp[,-1], na.rm=TRUE)/6000*rowSums(!is.na(transp_data_temp[,-1]))
-transp_data_temp <- transp_data_temp |>
-  dplyr::mutate(E_T1_97 = Eplanttot) |>
-  dplyr::select(dates, Eplanttot, E_T1_97)
+                      dplyr::funs(sum(., na.rm = TRUE)))  |>
+  dplyr::mutate_at(dplyr::vars(dplyr::starts_with('FRA_HES_HE2_NON')),
+                   dplyr::funs(replace(., . == 0, NA)))
+transp_data_temp$E_Fs <- rowMeans(transp_data_temp[,2:11], na.rm=TRUE)
+transp_data_temp2 <- transp_data_temp |>
+  dplyr::select(dates, E_Fs)
+names(transp_data_temp2)[2] <- paste0("E_",FS_cohname)
 
 ydoy.ymd <- function(year, DOY){
   # define the origine as the first day of each year
@@ -227,9 +232,8 @@ measuredData <- swc_FRAHES |>
   dplyr::select(dates, 3:15) |>
   dplyr::mutate(
     SWC = (`H-10` + `H-20` + `H-30`)/3) |>
-  dplyr::full_join(transp_data_temp, by = 'dates') |>
-  dplyr::mutate(SWC_err = NA) |>
-  dplyr::select(dates, SWC, SWC_err, Eplanttot, E_T1_97) |>
+  dplyr::select(dates, SWC) |>
+  dplyr::full_join(transp_data_temp2, by = 'dates') |>
   dplyr::arrange(dates)
 
 fluxData <- flux_data |>
@@ -250,7 +254,7 @@ fluxData <- flux_data |>
                    Radiation = (sum((SW_IN * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
                    Precipitation = sum(P, na.rm = TRUE),
                    WindSpeed = mean(WS, na.rm = TRUE),
-                   LE = mean(LE, na.rm = TRUE),
+                   LE = (3600*24/1e6)*mean(LE, na.rm = TRUE),
                    SWC = mean(SWC, na.rm = TRUE))
 
 measuredData <- measuredData |>
@@ -258,21 +262,22 @@ measuredData <- measuredData |>
   dplyr::arrange(dates)
 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2005-12-31"), by="day")
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2001-01-01"),as.Date("2004-12-31"), by="day")
+evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2004-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
 
 
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
+            'Vegetation',
+            'Sapflow'),
   Remark = c('VG_theta_sat modified',
-             'No understory')
+             'No woody understory but 5% herbaceous layer',
+             'Scaling using species-level Huber value')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------

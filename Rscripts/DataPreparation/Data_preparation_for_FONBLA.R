@@ -1,10 +1,11 @@
 ## Font blanche Q. ilex/P. halepensis/Phillyrea latifolia data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
-data("SpParamsMED")
+data("SpParamsFR")
 
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -23,9 +24,9 @@ sapf_data2014 <-read_xlsx("SourceData/Tables/fontblanche/2014_TD_sap_velocity_wa
 plant_md <- read.csv('SourceData/Tables/fontblanche/TD.csv', sep=" ")
 
 
-QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
-PL_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Phillyrea latifolia"]
-PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
+QI_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Quercus ilex"]
+PL_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Phillyrea latifolia"]
+PH_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Pinus halepensis"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -98,7 +99,7 @@ for(sp in c("Quercus ilex","Pinus halepensis","Phillyrea latifolia")) {
 treeData$N = 10000*1/625
 f = emptyforest()
 f$treeData = treeData
-treeData$LAI = plant_LAI(f, SpParamsMED)
+treeData$LAI = plant_LAI(f, SpParamsFR)
 treeDataDetailed = treeData
 tapply(treeDataDetailed$LAI, treeDataDetailed$Species, sum)
 sum(treeDataDetailed$LAI)
@@ -114,7 +115,7 @@ treeData <- data.frame(
 )
 f = emptyforest()
 f$treeData = treeData
-treeData$LAI <- species_LAI(f, SpParamsMED)
+treeData$LAI <- species_LAI(f, SpParamsFR)
 treeData$LAI <- treeData$LAI*(2.7/sum(treeData$LAI)) ## CORRECT LAI = 2.7
 rm(f)
 
@@ -135,7 +136,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'FONBLA',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsFR",
   herbCover = 10, herbHeight = 20,
   Validation = 'global', Definitive = 'Yes'
 )

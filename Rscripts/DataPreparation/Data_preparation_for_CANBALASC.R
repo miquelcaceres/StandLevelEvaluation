@@ -1,10 +1,12 @@
 ## canbalasc data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
-data("SpParamsMED")
+
+data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
 env_data <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_env_data.csv')
@@ -15,10 +17,10 @@ stand_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_stand_md
 plant_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_species_md.csv')
 
-AU_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Arbutus unedo"]
-PH_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Pinus halepensis"]
-QP_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus pubescens"]
-QI_index = SpParamsMED$SpIndex[SpParamsMED$Name=="Quercus ilex"]
+AU_index = SpParamsES$SpIndex[SpParamsES$Name=="Arbutus unedo"]
+PH_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus halepensis"]
+QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pubescens"]
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -84,7 +86,7 @@ treeData <- data.frame(
 )
 f = emptyforest()
 f$treeData = treeData
-treeData$LAI <- species_LAI(f, SpParamsMED)
+treeData$LAI <- species_LAI(f, SpParamsES)
 treeData$LAI <- treeData$LAI*(3.2/sum(treeData$LAI)) ## CORRECT LAI = 3.2
 rm(f)
 
@@ -110,7 +112,7 @@ shrubData <- data.frame(
 # 6. MISC DATA ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'CANBALASC',
-  SpParamsName = "SpParamsMED",
+  SpParamsName = "SpParamsES",
   herbCover = 5, herbHeight = 20,
   Validation = 'global_transp', Definitive = 'Yes'
 )
@@ -264,7 +266,7 @@ customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 
 # 
 # # par_QI = hydraulics_psi2Weibull(-6.5,-8.5)
-# par_leaf_PN = SpParamsMED[SpParamsMED$Name=="Pinus nigra", c("VCleaf_c", "VCleaf_d")]
+# par_leaf_PN = SpParamsES[SpParamsES$Name=="Pinus nigra", c("VCleaf_c", "VCleaf_d")]
 # customParams <- data.frame(
 #   SpIndex = c(AU_index, PH_index, QP_index, QI_index),
 #   Cohort = c(AU_cohname, PH_cohname, QP_cohname, QI_cohname),
