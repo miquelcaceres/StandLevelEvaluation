@@ -1,9 +1,11 @@
 ## Torgnon data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsFR")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -34,19 +36,21 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Torgnon",
             "Italy",
             site_md$si_code,
             "Marta Galvagno (ARPA VdA))",
             "IT-Tor",
             "Edoardo cremonese (ARPA VdA))",
-            site_md$si_lat,
-            site_md$si_long,
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
             site_md$si_elev,
             2, # < 2%
             110, #S 
@@ -56,9 +60,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "European larch forest",
             stand_md$st_lai,
+            "110.1007/s00484-012-0614-y",
             "Larix decidua",
+            "SpParamsFR",
             "2013-2016",
-            "110.1007/s00484-012-0614-y")
+            "2013-2016")
 )
 
 
@@ -238,34 +244,40 @@ measuredData <- env_data %>%
 names(measuredData)[5] = c(paste0("E_", LD_cohname))
 
 fluxData <- fluxnet_data |>
-  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA)) |>
-  dplyr::mutate(SWC_F_MDS_1 = replace(SWC_F_MDS_1, SWC_F_MDS_1==-9999, NA)) |>
+  dplyr::mutate(LE_F_MDS = replace(LE_F_MDS, LE_F_MDS==-9999, NA),
+                LE_F_MDS = replace(LE_F_MDS, LE_F_MDS==-9999, NA),
+                GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA),
+                SWC_F_MDS_1 = replace(SWC_F_MDS_1, SWC_F_MDS_1==-9999, NA)) |>
   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-  dplyr::select(dates, LE_CORR, SWC_F_MDS_1) |>
-  dplyr::mutate(SWC = SWC_F_MDS_1/100) |>
-  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR) |># From Wm2 to MJ/m2
-  dplyr::select(-LE_CORR, -SWC_F_MDS_1)
+  dplyr::select(dates, GPP_NT_VUT_REF, H_F_MDS, LE_F_MDS, SWC_F_MDS_1) |>
+  dplyr::mutate(SWC = SWC_F_MDS_1/100,
+                H = (3600*24/1e6)*H_F_MDS,
+                LE = (3600*24/1e6)*LE_F_MDS,
+                GPP = GPP_NT_VUT_REF) |>
+  dplyr::select(-GPP_NT_VUT_REF, -H_F_MDS,-LE_F_MDS, -SWC_F_MDS_1)
 
 measuredData <- measuredData|>
   dplyr::full_join(fluxData, by=c("dates", "SWC"))|>
   dplyr::arrange(dates) 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-evaluation_period <- seq(as.Date("2013-01-01"),as.Date("2016-12-31"), by="day")
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2013-01-01"),as.Date("2015-12-31"), by="day")
+evaluation_period <- seq(as.Date("2013-01-01"),as.Date("2015-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
             'Vegetation',
             'Weather',
-            'Sapflow'),
+            'Sapflow',
+            'Eddy covariance'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
              'Plantation',
              'Imputation for 4 days',
-             'Huber value estimated at the species level for scaling')
+             'Huber value estimated at the species level for scaling',
+             'Variables H_F_MDS and LE_F_MDS')
 )
 
 

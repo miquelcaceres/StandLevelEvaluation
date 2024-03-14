@@ -70,8 +70,8 @@ siteData <- data.frame(
             "10.1051/forest:2008052",
             "Fagus sylvatica",
             "SpParamsFR",
-            "2001-2004",
-            "2001-2004")
+            "2001-2003",
+            "2001-2003")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -265,8 +265,8 @@ measuredData <- measuredData |>
 
 
 # 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
-simulation_period <- seq(as.Date("2001-01-01"),as.Date("2004-12-31"), by="day")
-evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2004-12-31"), by="day")
+simulation_period <- seq(as.Date("2001-01-01"),as.Date("2003-12-31"), by="day")
+evaluation_period <- seq(as.Date("2001-01-01"),as.Date("2003-12-31"), by="day")
 meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
 

@@ -1,9 +1,11 @@
 ## Fontainebleau data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsFR")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -15,6 +17,7 @@ stand_md <- read.csv('SourceData/Tables/Fontainebleau/FRA_FON_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Fontainebleau/FRA_FON_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Fontainebleau/FRA_FON_species_md.csv')
 fluxnet_data <- read.csv('SourceData/Tables/Fontainebleau/FLX_FR-Fon_FLUXNET2015_SUBSET_DD_2005-2014_1-4.csv')
+fluxnet_data_hourly <- read.csv('SourceData/Tables/Fontainebleau/FLX_FR-Fon_FLUXNET2015_SUBSET_HH_2005-2014_1-4.csv')
 
 
 # 1. SITE INFORMATION -----------------------------------------------------
@@ -61,8 +64,8 @@ siteData <- data.frame(
             "10.1111/nph.13771",
             "Quercus petraea, Carpinus betulus",
             "SpParamsFR",
-            "2006",
-            "2006")
+            "2006-2008",
+            "2006-2008")
 )
 
 
@@ -127,21 +130,38 @@ s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 
 # 8. METEO DATA -----------------------------------------------------------
-meteoData <- env_data |>
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+meteoData <- fluxnet_data_hourly |>
+  dplyr::mutate(RH = replace(RH, RH==-9999, NA)) |>
+  dplyr::mutate(dates = as.Date(substr(as.character(TIMESTAMP_START),1,8), format = "%Y%m%d")) |>
   dplyr::group_by(dates) |>
-  dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
-                   MaxTemperature = max(ta, na.rm = TRUE),
-                   MinRelativeHumidity = min(rh, na.rm = TRUE),
-                   MaxRelativeHumidity = max(rh, na.rm = TRUE),
-                   Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
-                   Precipitation = sum(precip, na.rm = TRUE),
-                   WindSpeed = mean(ws, na.rm = TRUE)) |>
+  dplyr::summarise(MinTemperature = min(TA_F, na.rm = TRUE),
+                   MaxTemperature = max(TA_F, na.rm = TRUE),
+                   MinRelativeHumidity = min(RH, na.rm = TRUE),
+                   MaxRelativeHumidity = max(RH, na.rm = TRUE),
+                   Radiation = (sum((SW_IN_F * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+                   Precipitation = sum(P_F, na.rm = TRUE),
+                   WindSpeed = mean(WS_F, na.rm = TRUE)) |>
   dplyr::mutate(Radiation = Radiation*3600*24/1000000) |>
   dplyr::mutate_at(dplyr::vars(2:5),
                    dplyr::funs(replace(., is.infinite(.), NA))) |>
   dplyr::mutate_at(dplyr::vars(2:5),
                    dplyr::funs(replace(., is.nan(.), NA))) 
+# 
+# meteoData <- env_data |>
+#   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+#   dplyr::group_by(dates) |>
+#   dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
+#                    MaxTemperature = max(ta, na.rm = TRUE),
+#                    MinRelativeHumidity = min(rh, na.rm = TRUE),
+#                    MaxRelativeHumidity = max(rh, na.rm = TRUE),
+#                    Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
+#                    Precipitation = sum(precip, na.rm = TRUE),
+#                    WindSpeed = mean(ws, na.rm = TRUE)) |>
+#   dplyr::mutate(Radiation = Radiation*3600*24/1000000) |>
+#   dplyr::mutate_at(dplyr::vars(2:5),
+#                    dplyr::funs(replace(., is.infinite(.), NA))) |>
+#   dplyr::mutate_at(dplyr::vars(2:5),
+#                    dplyr::funs(replace(., is.nan(.), NA))) 
 
 
 
@@ -235,8 +255,8 @@ measuredData <- measuredData  |>
 
 # 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
-simulation_period <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"), by="day")
-evaluation_period <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"), by="day")
+simulation_period <- seq(as.Date("2006-01-01"),as.Date("2008-12-31"), by="day")
+evaluation_period <- seq(as.Date("2006-01-01"),as.Date("2008-12-31"), by="day")
 meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
 
@@ -249,7 +269,7 @@ remarks <- data.frame(
             'Eddy covariance'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
              'Plantation',
-             'Windspeed is missing',
+             'From fluxnet data',
              'Sapwood area estimated from dbh for trees within missing data',
              'Variables H_F_MDS and LE_F_MDS for sensible and latent heat')
 )
