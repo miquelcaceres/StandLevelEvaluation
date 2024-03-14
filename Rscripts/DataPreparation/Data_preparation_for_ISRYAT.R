@@ -269,13 +269,15 @@ transp_data_temp2 <- transp_data_temp |>
 names(transp_data_temp2)[2] <- paste0("E_",PH_cohname)
 
 fluxData <- fluxnet_data |>
-  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
+  dplyr::mutate(H_CORR = replace(H_CORR, H_CORR==-9999, NA),
+                LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
                 GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-  dplyr::select(dates, LE_CORR, GPP_NT_VUT_REF) |>
-  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
+  dplyr::select(dates,H_CORR, LE_CORR, GPP_NT_VUT_REF) |>
+  dplyr::mutate(H = (3600*24/1e6)*H_CORR,# From Wm2 to MJ/m2
+                LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
                 GPP = GPP_NT_VUT_REF) |>
-  dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
+  dplyr::select(-H_CORR, -LE_CORR, -GPP_NT_VUT_REF)
 
 measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>

@@ -5,6 +5,7 @@ library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -16,10 +17,6 @@ stand_md <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/AltoTajo/ESP_ALT_ARM_species_md.csv')
 
-
-PN_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus nigra"]
-QF_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus faginea"]
-QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -38,11 +35,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Alto Tajo (Armallones)",
             "Spain",
             "ESP_ALT_ARM",
@@ -59,10 +58,12 @@ siteData <- data.frame(
             10.1,
             495,
             "Sparse mixed forest dominated by three species",
+            "10.1007/S11258-014-0351-x",
             1.09,
             "Pinus nigra, Quercus faginea, Quercus ilex",
+            "SpParamsES",
             "2012-2013",
-            "10.1007/S11258-014-0351-x")
+            "2012-2013")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -150,8 +151,11 @@ meteoData <- env_data |>
 meteoData<- meteoData[!is.infinite(meteoData$MinTemperature),]
 
 
-
 # 9. CUSTOM PARAMS --------------------------------------------------------
+PN_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus nigra"]
+QF_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus faginea"]
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
+
 PN_cohname = paste0("T1_", PN_index)
 QF_cohname = paste0("T2_", QF_index)
 QI_cohname = paste0("T3_", QI_index)
@@ -314,11 +318,11 @@ customParams$Gs_P50[pn] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[pn]/25)
 # )
 
 # 10. MEASURED DATA --------------------------------------------------------
-# sapflow data, está en Kg/h, y el timestep es 30 minutos, así que si dividimos
-# entre 2 ya tenemos los L en esos 30 min. 
+# sapflow data, está en cm3/h, y el timestep es 30 minutos, así que si dividimos
+# entre 2000 ya tenemos los L en esos 30 min. 
 transp_data_temp <- sapf_data |>
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_ALT_ARM')),
-                   dplyr::funs(./2)) |>
+                   dplyr::funs(./2000)) |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   # sum days
   dplyr::group_by(dates) |>
@@ -326,34 +330,25 @@ transp_data_temp <- sapf_data |>
                       dplyr::funs(sum(., na.rm = TRUE))) |>
   # remove the zeroes generated previously
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_ALT_ARM')),
-                   dplyr::funs(replace(., . == 0, NA)))  |>
-  # cohorts transpiration
-  dplyr::mutate(
-    E_PN = (ESP_ALT_ARM_Pni_Jt_1+ESP_ALT_ARM_Pni_Jt_2 +ESP_ALT_ARM_Pni_Jt_3 +ESP_ALT_ARM_Pni_Jt_4 + ESP_ALT_ARM_Pni_Jt_13)/5, 
-    E_QF = (ESP_ALT_ARM_Qfa_Jt_5 + ESP_ALT_ARM_Qfa_Jt_6 + ESP_ALT_ARM_Qfa_Jt_7 + ESP_ALT_ARM_Qfa_Jt_8 + ESP_ALT_ARM_Qfa_Jt_9 + ESP_ALT_ARM_Qfa_Jt_14)/6,
-    E_QI = (ESP_ALT_ARM_Qil_Jt_10 + ESP_ALT_ARM_Qil_Jt_11 + ESP_ALT_ARM_Qil_Jt_12 + ESP_ALT_ARM_Qil_Jt_15)/4,
-    Eplanttot = NA
-  ) |> #Transform from kg/day/tree to l/day/m2 of leaves 
-  dplyr::mutate(
-    E_PN = E_PN * treeData$N[1] * (1/treeData$LAI[1])*(1/10000),
-    E_QF = E_QF * treeData$N[2] * (1/treeData$LAI[2])*(1/10000),
-    E_QI = E_QI * treeData$N[3] * (1/treeData$LAI[3])*(1/10000)
-  ) |>
-  dplyr::mutate( # Manually scaling
-    E_PN = E_PN * (1/3600),
-    E_QF = E_QF * (1/3600),
-    E_QI = E_QI * (1/3600)
-  ) |>
-  dplyr::select(dates, Eplanttot, E_PN, E_QF, E_QI)
+                   dplyr::funs(replace(., . == 0, NA)))
+transp_data_temp$E_Pn <- rowMeans(transp_data_temp[,2:5], na.rm=TRUE)
+transp_data_temp$E_Qf <- rowMeans(transp_data_temp[,6:10], na.rm=TRUE)
+transp_data_temp$E_Qi <- rowMeans(transp_data_temp[,11:16], na.rm=TRUE)
 
-measuredData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) %>%
-  dplyr::select(dates, swc_shallow) %>%
-  dplyr::group_by(dates) %>%
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) %>%
-  dplyr::left_join(transp_data_temp, by = 'dates') %>%
-  dplyr::mutate(SWC_err = NA) %>%
-  dplyr::select(dates, SWC, SWC_err, Eplanttot, E_PN, E_QF, E_QI)
+transp_data_temp2 <- transp_data_temp |> #Transform from kg/day/tree to l/day/m2 of leaves 
+  dplyr::mutate(
+    E_Pn = E_Pn * treeData$N[1] * (1/treeData$LAI[1])*(1/10000),
+    E_Qf = E_Qf * treeData$N[2] * (1/treeData$LAI[2])*(1/10000),
+    E_Qi = E_Qi * treeData$N[3] * (1/treeData$LAI[3])*(1/10000)
+  ) |>
+  dplyr::select(dates, E_Pn, E_Qf, E_Qi)
+
+measuredData <- env_data |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::select(dates, swc_shallow) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) |>
+  dplyr::left_join(transp_data_temp2, by = 'dates') 
 
 wpData <- read_xlsx("SourceData/Tables/AltoTajo/Potencial Armallones.xlsx")
 wpData$dates = as.Date(wpData$Date)
@@ -386,7 +381,7 @@ wpDataSumQF = wpData |>
                    MD_QF_err = sd(MD, na.rm=T)) 
 measuredData <- left_join(measuredData, wpDataSumQF, by="dates")
 
-names(measuredData)[5:19] = c(paste0("E_",c(PN_cohname, QF_cohname, QI_cohname)),
+names(measuredData)[3:17] = c(paste0("E_",c(PN_cohname, QF_cohname, QI_cohname)),
                               paste0("PD_", QI_cohname),
                               paste0("PD_", QI_cohname, "_err"),
                               paste0("MD_", QI_cohname),
@@ -401,20 +396,20 @@ names(measuredData)[5:19] = c(paste0("E_",c(PN_cohname, QF_cohname, QI_cohname))
                               paste0("MD_", QF_cohname, "_err"))
 
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-d = as.Date(meteoData$dates)
-meteoData <- meteoData[(d>="2012-01-17") & (d<="2013-12-31"),] #Select years
-d = as.Date(measuredData$dates)
-measuredData <- measuredData[(d>="2012-01-17") & (d<="2013-12-31"),] #Select years
-
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2012-01-17"),as.Date("2013-12-31"), by="day")
+evaluation_period <- seq(as.Date("2012-01-17"),as.Date("2013-12-31"), by="day")
+measuredData <- measuredData |> filter(dates %in% simulation_period)
+meteoData <- meteoData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
+            'Vegetation',
+            'Sapflow'),
   Remark = c('Taken from Soilgrids',
-             'Understory not considered')
+             'Understory not considered',
+             'Scaling done using tree density and LAI')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------

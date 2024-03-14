@@ -35,11 +35,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Morgan-Mornoe",
             "USA",
             site_md$si_code,
@@ -57,9 +59,11 @@ siteData <- data.frame(
             round(site_md$si_map),
             "Mixed temperate forest",
             5,
+            "",
             "Acer saccharum, Liriodendron tulipifera, Quercus rubra, Quercus alba",
+            "SpParamsUS",
             "2011-2013",
-            "")
+            "2011-2013")
 )
 
 
@@ -211,19 +215,19 @@ Al2As_sp[2] <- mean(Al2As_sp, na.rm=TRUE)
 customParams$Al2As <- Al2As_sp
 
 # 10. MEASURED DATA --------------------------------------------------------
-# sapflow data, está en cm3 h-1 , y el timestep es 60 minutos, 
+# sapflow data, está en cm3 cm-2 h-1 , y el timestep es 60 minutos, 
 # cal dividir per sapwood area, multiplicar per 0.001 (per passar a de cm3 a dm3)
 # i dividir per Al2As (en m2 per cm2 sapwood)
 # Sumamos todo el día 
 sapflow_factor <- 1/1000
 transp_data_temp <- sapf_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  dplyr::mutate(USA_MOR_SF_Asa_Js_1 = sapflow_factor*USA_MOR_SF_Asa_Js_1/(Al2As_sp[1]/10000*plant_md$pl_sapw_area[1]),
-                USA_MOR_SF_Asa_Js_2 = sapflow_factor*USA_MOR_SF_Asa_Js_2/(Al2As_sp[1]/10000*plant_md$pl_sapw_area[2]),
-                USA_MOR_SF_Ltu_Js_3 = sapflow_factor*USA_MOR_SF_Ltu_Js_3/(Al2As_sp[2]/10000*plant_md$pl_sapw_area[3]),
-                USA_MOR_SF_Ltu_Js_4 = sapflow_factor*USA_MOR_SF_Ltu_Js_4/(Al2As_sp[2]/10000*plant_md$pl_sapw_area[4]),
-                USA_MOR_SF_Qru_Js_5 = sapflow_factor*USA_MOR_SF_Qru_Js_5/(Al2As_sp[3]/10000*plant_md$pl_sapw_area[5]),
-                USA_MOR_SF_Qal_Js_6 = sapflow_factor*USA_MOR_SF_Qal_Js_6/(Al2As_sp[4]/10000*plant_md$pl_sapw_area[6]))|>
+  dplyr::mutate(USA_MOR_SF_Asa_Js_1 = sapflow_factor*USA_MOR_SF_Asa_Js_1/(Al2As_sp[1]/10000),
+                USA_MOR_SF_Asa_Js_2 = sapflow_factor*USA_MOR_SF_Asa_Js_2/(Al2As_sp[1]/10000),
+                USA_MOR_SF_Ltu_Js_3 = sapflow_factor*USA_MOR_SF_Ltu_Js_3/(Al2As_sp[2]/10000),
+                USA_MOR_SF_Ltu_Js_4 = sapflow_factor*USA_MOR_SF_Ltu_Js_4/(Al2As_sp[2]/10000),
+                USA_MOR_SF_Qru_Js_5 = sapflow_factor*USA_MOR_SF_Qru_Js_5/(Al2As_sp[3]/10000),
+                USA_MOR_SF_Qal_Js_6 = sapflow_factor*USA_MOR_SF_Qal_Js_6/(Al2As_sp[4]/10000))|>
   dplyr::group_by(dates)  |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('USA_MOR_SF')),
                       dplyr::funs(sum(., na.rm = TRUE)))  |>
@@ -238,14 +242,16 @@ transp_data_temp2<-data.frame(dates = transp_data_temp$dates,
 
 fluxData <- fluxnet_data |>
   dplyr::mutate(SWC_F_MDS_1 = replace(SWC_F_MDS_1, SWC_F_MDS_1==-9999, NA),
+                H_CORR = replace(H_CORR, H_CORR==-9999, NA),
                 LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
                 GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-  dplyr::select(dates, SWC_F_MDS_1, LE_CORR, GPP_NT_VUT_REF) |>
+  dplyr::select(dates, SWC_F_MDS_1, H_CORR, LE_CORR, GPP_NT_VUT_REF) |>
   dplyr::mutate(SWC = SWC_F_MDS_1/100,
+                H = (3600*24/1e6)*H_CORR,# From Wm2 to MJ/m2
                 LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
                 GPP = GPP_NT_VUT_REF) |>
-  dplyr::select(-LE_CORR, -GPP_NT_VUT_REF, -SWC_F_MDS_1)
+  dplyr::select(-H_CORR, -LE_CORR, -GPP_NT_VUT_REF, -SWC_F_MDS_1)
 
 # measuredData <- env_data %>%
 #   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
@@ -256,34 +262,36 @@ fluxData <- fluxnet_data |>
 measuredData <- fluxData |>
   dplyr::full_join(transp_data_temp2, by = 'dates')|>
   dplyr::arrange(dates) 
-names(measuredData)[5:8] = c(paste0("E_", AS_cohname),
+names(measuredData)[6:9] = c(paste0("E_", AS_cohname),
                              paste0("E_", LT_cohname),
                              paste0("E_", QR_cohname),
                              paste0("E_", QA_cohname))
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2011-01-01"),as.Date("2013-12-31"), by="day")
 evaluation_period <- seq(as.Date("2011-01-01"),as.Date("2013-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
-row.names(meteoData) <- NULL
-row.names(measuredData) <- NULL
+
 # which(is.na(meteoData$MaxRelativeHumidity))
 meteoData[156, c("MinRelativeHumidity", "MaxRelativeHumidity")] <- meteoData[155, c("MinRelativeHumidity", "MaxRelativeHumidity")]
 meteoData[162, c("MinRelativeHumidity", "MaxRelativeHumidity")] <- meteoData[161, c("MinRelativeHumidity", "MaxRelativeHumidity")]
 meteoData[391, c("MinRelativeHumidity", "MaxRelativeHumidity")] <- meteoData[390, c("MinRelativeHumidity", "MaxRelativeHumidity")]
 meteoData[392, c("MinRelativeHumidity", "MaxRelativeHumidity")] <- meteoData[390, c("MinRelativeHumidity", "MaxRelativeHumidity")]
 summary(meteoData)
+
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
             'Vegetation',
             'Weather',
-            'Soil moisture'),
+            'Soil moisture',
+            'Sapflow'),
   Remark = c('Taken from SoilGrids',
              'Understory not considered',
              'Using FLUXNET weather',
-             'Taken from FLUXNET data')
+             'Taken from FLUXNET data',
+             'Scaling and tree selection to be revised')
 )
 
 

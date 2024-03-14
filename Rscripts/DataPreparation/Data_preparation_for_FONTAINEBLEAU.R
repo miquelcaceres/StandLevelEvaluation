@@ -220,13 +220,15 @@ names(measuredData)[2] = paste0("E_", CB_cohname)
 names(measuredData)[3] = paste0("E_", QP_cohname)
 
 fluxData <- fluxnet_data |>
-  dplyr::mutate(LE_F_MDS = replace(LE_F_MDS, LE_F_MDS==-9999, NA),
+  dplyr::mutate(H_F_MDS = replace(H_F_MDS, H_F_MDS==-9999, NA),
+                LE_F_MDS = replace(LE_F_MDS, LE_F_MDS==-9999, NA),
                 GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-  dplyr::select(dates, LE_F_MDS, GPP_NT_VUT_REF) |>
-  dplyr::mutate(LE = (3600*24/1e6)*LE_F_MDS,# From Wm2 to MJ/m2
+  dplyr::select(dates, H_F_MDS, LE_F_MDS, GPP_NT_VUT_REF) |>
+  dplyr::mutate(H = (3600*24/1e6)*H_F_MDS,# From Wm2 to MJ/m2
+                LE = (3600*24/1e6)*LE_F_MDS,# From Wm2 to MJ/m2
                 GPP = GPP_NT_VUT_REF) |>
-  dplyr::select(-LE_F_MDS, -GPP_NT_VUT_REF)
+  dplyr::select(-H_F_MDS, -LE_F_MDS, -GPP_NT_VUT_REF)
 
 measuredData <- measuredData  |>
   dplyr::left_join(fluxData, by="dates")
@@ -243,11 +245,13 @@ remarks <- data.frame(
   Title = c('Soil',
             'Vegetation',
             'Weather',
-            'Sapflow'),
+            'Sapflow',
+            'Eddy covariance'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
              'Plantation',
              'Windspeed is missing',
-             'Sapwood area estimated from dbh for trees within missing data')
+             'Sapwood area estimated from dbh for trees within missing data',
+             'Variables H_F_MDS and LE_F_MDS for sensible and latent heat')
 )
 
 

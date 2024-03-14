@@ -17,8 +17,6 @@ stand_md <- read.csv('SourceData/Tables/Ronda/ESP_RON_PIL_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Ronda/ESP_RON_PIL_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Ronda/ESP_RON_PIL_species_md.csv')
 
-AP_index = SpParamsES$SpIndex[SpParamsES$Name=="Abies pinsapo"]
-TB_index = SpParamsES$SpIndex[SpParamsES$Name=="Taxus baccata"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -37,11 +35,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Ronda (Pilones)",
             "Spain",
             "ESP_RON_PIL",
@@ -58,10 +58,12 @@ siteData <- data.frame(
             round(site_md$si_mat,1),
             round(site_md$si_map),
             "Mixed gimnosperm forest dominated by Abies pinsapo",
+            "10.3390/f10121132",
             NA,
             "Abies pinsapo, Taxus baccata",
+            "SpParamsES",
             "2011-2013",
-            "10.3390/f10121132")
+            "2011-2013")
 )
 
 
@@ -109,7 +111,7 @@ shrubData <- data.frame(
 miscData <- data.frame(
   ID = 'RONDA',
   SpParamsName = "SpParamsES",
-  herbCover = 10, herbHeight = 20,
+  herbCover = 10, herbHeight = 10,
   Validation = 'global', Definitive = 'No'
 )
 
@@ -180,6 +182,8 @@ meteoData[meteoData$dates %in% meteoDataSite$dates[!is.na(meteoDataSite$MaxRelat
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
+AP_index = SpParamsES$SpIndex[SpParamsES$Name=="Abies pinsapo"]
+TB_index = SpParamsES$SpIndex[SpParamsES$Name=="Taxus baccata"]
 AP_cohname = paste0("T1_", AP_index)
 TB_cohname = paste0("T2_", TB_index)
 ap<- 1
@@ -218,27 +222,27 @@ customParams <- data.frame(
 
 customParams$Al2As[ap] <- 0.14/(pi*(8.3*0.001/2)^2)
 customParams$Al2As[tb] <- 6790.546
+customParams$LeafAngle[tb] <- 30
 
 # 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en cm3 cm-2 sapwood h-1 , y el timestep es 30 minutos, 
 # per passar a dm3 per m-2 fulla en 30 m cal dividir per 2 (per passar a 30 min), multiplicar per 0.001 (per passar a de cm3 a dm3)
 # i dividir per Al2As (en m2 per cm2 sapwood)
-# Sumamos todo el día y luego multiplicamos por le numero total de arboles y dividimos por los arboles medidos
-# y el area de la parcela
+sapflow_factor <- 2/1000
 transp_data_temp <- sapf_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  dplyr::mutate(ESP_RON_PIL_Api_Js_1 = 0.001*0.5*ESP_RON_PIL_Api_Js_1/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_10 = 0.001*0.5*ESP_RON_PIL_Api_Js_10/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Tba_Js_11 = 0.001*0.5*ESP_RON_PIL_Tba_Js_11/(customParams$Al2As[tb]/10000),
-                ESP_RON_PIL_Tba_Js_12 = 0.001*0.5*ESP_RON_PIL_Tba_Js_12/(customParams$Al2As[tb]/10000),
-                ESP_RON_PIL_Api_Js_2 = 0.001*0.5*ESP_RON_PIL_Api_Js_2/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_3 = 0.001*0.5*ESP_RON_PIL_Api_Js_3/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_4 = 0.001*0.5*ESP_RON_PIL_Api_Js_4/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_5 = 0.001*0.5*ESP_RON_PIL_Api_Js_5/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_6 = 0.001*0.5*ESP_RON_PIL_Api_Js_6/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_7 = 0.001*0.5*ESP_RON_PIL_Api_Js_7/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_8 = 0.001*0.5*ESP_RON_PIL_Api_Js_8/(customParams$Al2As[ap]/10000),
-                ESP_RON_PIL_Api_Js_9 = 0.001*0.5*ESP_RON_PIL_Api_Js_9/(customParams$Al2As[ap]/10000))|>
+  dplyr::mutate(ESP_RON_PIL_Api_Js_1 = sapflow_factor*ESP_RON_PIL_Api_Js_1/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_10 = sapflow_factor*ESP_RON_PIL_Api_Js_10/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Tba_Js_11 = sapflow_factor*ESP_RON_PIL_Tba_Js_11/(customParams$Al2As[tb]/10000),
+                ESP_RON_PIL_Tba_Js_12 = sapflow_factor*ESP_RON_PIL_Tba_Js_12/(customParams$Al2As[tb]/10000),
+                ESP_RON_PIL_Api_Js_2 = sapflow_factor*ESP_RON_PIL_Api_Js_2/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_3 = sapflow_factor*ESP_RON_PIL_Api_Js_3/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_4 = sapflow_factor*ESP_RON_PIL_Api_Js_4/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_5 = sapflow_factor*ESP_RON_PIL_Api_Js_5/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_6 = sapflow_factor*ESP_RON_PIL_Api_Js_6/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_7 = sapflow_factor*ESP_RON_PIL_Api_Js_7/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_8 = sapflow_factor*ESP_RON_PIL_Api_Js_8/(customParams$Al2As[ap]/10000),
+                ESP_RON_PIL_Api_Js_9 = sapflow_factor*ESP_RON_PIL_Api_Js_9/(customParams$Al2As[ap]/10000))|>
   dplyr::group_by(dates)  |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('ESP_RON_PIL')),
                       dplyr::funs(sum(., na.rm = TRUE)))  |>
@@ -254,13 +258,12 @@ measuredData <- env_data %>%
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   group_by(dates) |>
   summarise(SWC = mean(swc_shallow)) |>
-  dplyr::mutate(SWC_err = NA)|>
   dplyr::full_join(transp_data_temp2, by = 'dates')|>
   dplyr::arrange(dates) 
-names(measuredData)[4:5] = c(paste0("E_", AP_cohname),
+names(measuredData)[3:4] = c(paste0("E_", AP_cohname),
                              paste0("E_", TB_cohname))
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 # Select evaluation dates
 
 
@@ -268,10 +271,12 @@ names(measuredData)[4:5] = c(paste0("E_", AP_cohname),
 remarks <- data.frame(
   Title = c('Soil',
             'Vegetation',
-            'Weather'),
+            'Weather',
+            'Sapflow'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
-             'Understory not considered',
-             'Complemented with interpolated weather')
+             'LAI not available. Understory not considered except herbaceous layer',
+             'Complemented with interpolated weather',
+             'Species-level Huber value used for scaling. Revise scaling.')
 )
 
 

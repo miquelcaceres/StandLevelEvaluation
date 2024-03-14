@@ -69,8 +69,8 @@ siteData <- data.frame(
             "10.1016/j.agrformet.2021.108472",
             "Quercus ilex, Pinus halepensis, Phillyrea latifolia",
             "SpParamsFR",
-            "2014",
-            "2014")
+            "2014-2018",
+            "2014-2018")
 )
 
 # 2. TERRAIN DATA ---------------------------------------------------------
@@ -138,7 +138,7 @@ shrubData <- data.frame(
 miscData <- data.frame(
   ID = 'FONBLA',
   SpParamsName = "SpParamsFR",
-  herbCover = 10, herbHeight = 20,
+  herbCover = 5, herbHeight = 10,
   Validation = 'global', Definitive = 'Yes'
 )
 
@@ -318,8 +318,10 @@ row.names(measuredData)<-NULL
 fluxData <- fluxnet_data |>
   dplyr::mutate(dates = as.Date(DateTime)) |>
   dplyr::group_by(dates) |>
-  dplyr::summarise(LE = mean(LE_F, na.rm=TRUE)) |>
-  dplyr::mutate(LE = (3600*24/1e6)*LE) 
+  dplyr::summarise(LE = mean(LE_F, na.rm=TRUE),
+                   H = mean(H, na.rm=TRUE)) |>
+  dplyr::mutate(LE = (3600*24/1e6)*LE,
+                H = (3600*24/1e6)*H) 
 
 measuredData <- measuredData |>
   dplyr::left_join(fluxData, by="dates")

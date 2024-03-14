@@ -312,13 +312,15 @@ transp_data_temp <- sapf_data %>%
   dplyr::select(dates, E_QI, E_BS)
 
 fluxData <- fluxnet_data |>
-  dplyr::mutate(LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
+  dplyr::mutate(H_CORR = replace(H_CORR, H_CORR==-9999, NA),
+                LE_CORR = replace(LE_CORR, LE_CORR==-9999, NA),
                 GPP_NT_VUT_REF = replace(GPP_NT_VUT_REF, GPP_NT_VUT_REF==-9999, NA))|>
   dplyr::mutate(dates = as.Date(as.character(TIMESTAMP), format = "%Y%m%d")) |>
-  dplyr::select(dates, LE_CORR, GPP_NT_VUT_REF) |>
-  dplyr::mutate(LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
+  dplyr::select(dates, H_CORR, LE_CORR, GPP_NT_VUT_REF) |>
+  dplyr::mutate(H = (3600*24/1e6)*H_CORR,# From Wm2 to MJ/m2
+                LE = (3600*24/1e6)*LE_CORR,# From Wm2 to MJ/m2
                 GPP = GPP_NT_VUT_REF) |>
-  dplyr::select(-LE_CORR, -GPP_NT_VUT_REF)
+  dplyr::select(-H_CORR, -LE_CORR, -GPP_NT_VUT_REF)
 
 wpData <- read_xlsx("SourceData/Tables/Puechabon/FRA_PUE_WaterPotentials.xlsx") |>
   dplyr::mutate(Date = as.Date(Date)) |>
@@ -337,10 +339,10 @@ measuredData <- env_data |>
   dplyr::left_join(wpData, by="dates")
 
 names(measuredData)[4:5] <- paste0("E_",c(QI_cohname, BS_cohname))
-names(measuredData)[8] <- paste0("PD_", QI_cohname)
-names(measuredData)[9] <- paste0("PD_", QI_cohname, "_err")
-names(measuredData)[10] <- paste0("MD_", QI_cohname)
-names(measuredData)[11] <- paste0("MD_", QI_cohname, "_err")
+names(measuredData)[9] <- paste0("PD_", QI_cohname)
+names(measuredData)[10] <- paste0("PD_", QI_cohname, "_err")
+names(measuredData)[11] <- paste0("MD_", QI_cohname)
+names(measuredData)[12] <- paste0("MD_", QI_cohname, "_err")
 
 # 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
 simulation_period <- seq(as.Date("2004-01-01"),as.Date("2006-12-31"), by="day")

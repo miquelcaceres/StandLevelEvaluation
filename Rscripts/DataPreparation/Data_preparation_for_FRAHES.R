@@ -241,6 +241,7 @@ fluxData <- flux_data |>
                 WS = replace(WS, WS==-9999, NA),
                 TA = replace(TA, TA==-9999, NA),
                 P = replace(P, P==-9999, NA),
+                H = replace(H, H==-9999, NA),
                 LE = replace(LE, LE==-9999, NA),
                 RH = replace(RH, RH==-9999, NA),
                 PA = replace(PA, PA==-9999, NA),
@@ -254,11 +255,12 @@ fluxData <- flux_data |>
                    Radiation = (sum((SW_IN * 1800), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
                    Precipitation = sum(P, na.rm = TRUE),
                    WindSpeed = mean(WS, na.rm = TRUE),
+                   H = (3600*24/1e6)*mean(H, na.rm = TRUE),
                    LE = (3600*24/1e6)*mean(LE, na.rm = TRUE),
                    SWC = mean(SWC, na.rm = TRUE))
 
 measuredData <- measuredData |>
-  dplyr::full_join(fluxData[,c("dates", "LE")], by = 'dates') |>
+  dplyr::full_join(fluxData[,c("dates", "H", "LE")], by = 'dates') |>
   dplyr::arrange(dates)
 
 

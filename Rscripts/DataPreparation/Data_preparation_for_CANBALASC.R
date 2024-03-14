@@ -9,18 +9,14 @@ library(readxl)
 data("SpParamsES")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
-env_data <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_env_data.csv')
-sapf_data <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_sapf_data.csv')
-env_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_env_md.csv')
-site_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_site_md.csv')
-stand_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_stand_md.csv')
-plant_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_plant_md.csv')
-species_md <- read.csv('SourceData/Tables/CanBalasc/CANBALASC_sap/ESP_CAN_species_md.csv')
+env_data <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_env_data.csv')
+sapf_data <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_sapf_data.csv')
+env_md <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_env_md.csv')
+site_md <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_site_md.csv')
+stand_md <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_stand_md.csv')
+plant_md <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_plant_md.csv')
+species_md <- read.csv('SourceData/Tables/CanBalasc/ESP_CAN_species_md.csv')
 
-AU_index = SpParamsES$SpIndex[SpParamsES$Name=="Arbutus unedo"]
-PH_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus halepensis"]
-QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pubescens"]
-QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -39,11 +35,13 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Can Balasc",
             "Spain",
             "ESP_CAN",
@@ -61,9 +59,11 @@ siteData <- data.frame(
             585,
             "Mixed forest dominated by Q. ilex",
             3.2,
+            "10.1016/j.agrformet.2015.03.012",
             "Quercus ilex, Quercus pubescens, Pinus halepensis, Arbutus unedo",
+            "SpParamsES",
             "2011-2012",
-            "10.1016/j.agrformet.2015.03.012")
+            "2011-2012")
 )
 
 
@@ -162,6 +162,11 @@ meteoData <- meteoData[!is.na(meteoData$dates),]
 
 
 # 9. CUSTOM PARAMS --------------------------------------------------------
+AU_index = SpParamsES$SpIndex[SpParamsES$Name=="Arbutus unedo"]
+PH_index = SpParamsES$SpIndex[SpParamsES$Name=="Pinus halepensis"]
+QP_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus pubescens"]
+QI_index = SpParamsES$SpIndex[SpParamsES$Name=="Quercus ilex"]
+
 AU_cohname = paste0("T1_", AU_index)
 PH_cohname = paste0("T2_", PH_index)
 QP_cohname = paste0("T3_", QP_index)
@@ -290,76 +295,49 @@ customParams$Gs_P50[ph] <- -1.36 + log(0.12/0.88)/(customParams$Gs_slope[ph]/25)
 # )
 
 # 10. MEASURED DATA --------------------------------------------------------
-# sapflow data, está en mm3/mm2 s, y el timestep es 15 minutos, así que tenemos que
-# multiplicar por 15*60 segundos para los mm3/mm2 en el timestep, por el As2Al
-# de cada árbol *100 y dividir entre 100000 para tenerlo en L. Luego sumamos todo el día y luego
-# agregamos los arboles y dividimos por el numero de arboles medidos, para finalmente multiplicar por el LAI
+# sapflow data, está en cm3 cm-2 h-1 of leaf area, y el timestep es 15 minutos, así que tenemos que
+# multiplicar por 15*60 segundos para los l/m-2 en el timestep.
+# Agrego los datos de sapflow por día, promedio todos los árboles 
 transp_data_temp <- sapf_data |>
   dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_CAN')),
-                   dplyr::funs(.*60*15*100/1000000)) |>
-  dplyr::mutate(
-    ESP_CAN_Qpu_Js_1 = ESP_CAN_Qpu_Js_1 * As2Al[1],
-    ESP_CAN_Qpu_Js_2 = ESP_CAN_Qpu_Js_2 * As2Al[12],
-    ESP_CAN_Qpu_Js_3 = ESP_CAN_Qpu_Js_3 * As2Al[15],
-    ESP_CAN_Qpu_Js_4 = ESP_CAN_Qpu_Js_4 * As2Al[16],
-    ESP_CAN_Qpu_Js_5 = ESP_CAN_Qpu_Js_5 * As2Al[17],
-    ESP_CAN_Qpu_Js_6 = ESP_CAN_Qpu_Js_6 * As2Al[18],
-    ESP_CAN_Qpu_Js_7 = ESP_CAN_Qpu_Js_7 * As2Al[19],
-    ESP_CAN_Pha_Js_8 = ESP_CAN_Pha_Js_8 * As2Al[20],
-    ESP_CAN_Pha_Js_9 = ESP_CAN_Pha_Js_9 * As2Al[21],
-    ESP_CAN_Pha_Js_10 = ESP_CAN_Pha_Js_10 * As2Al[2],
-    ESP_CAN_Qil_Js_11 = ESP_CAN_Qil_Js_11 * As2Al[3],
-    ESP_CAN_Qil_Js_12 = ESP_CAN_Qil_Js_12 * As2Al[4],
-    ESP_CAN_Qil_Js_13 = ESP_CAN_Qil_Js_13 * As2Al[5],
-    ESP_CAN_Qil_Js_14 = ESP_CAN_Qil_Js_14 * As2Al[6],
-    ESP_CAN_Qil_Js_15 = ESP_CAN_Qil_Js_15 * As2Al[7],
-    ESP_CAN_Qil_Js_16 = ESP_CAN_Qil_Js_16 * As2Al[8],
-    ESP_CAN_Qil_Js_17 = ESP_CAN_Qil_Js_17 * As2Al[9],
-    ESP_CAN_Aun_Js_18 = ESP_CAN_Aun_Js_18 * As2Al[10],
-    ESP_CAN_Aun_Js_19 = ESP_CAN_Aun_Js_19 * As2Al[11],
-    ESP_CAN_Aun_Js_20 = ESP_CAN_Aun_Js_20 * As2Al[13],
-    ESP_CAN_Aun_Js_21 = ESP_CAN_Aun_Js_21 * As2Al[14]
-  ) |>
+                   dplyr::funs(.*0.25*1e4/1e3))|>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  # sum days
   dplyr::group_by(dates) |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('ESP_CAN')),
                       dplyr::funs(sum(., na.rm = TRUE))) |>
-  dplyr::mutate(
-    E_AU = ESP_CAN_Aun_Js_18 + ESP_CAN_Aun_Js_19 + ESP_CAN_Aun_Js_20 + ESP_CAN_Aun_Js_21,
-    E_PH = ESP_CAN_Pha_Js_8 + ESP_CAN_Pha_Js_9 + ESP_CAN_Pha_Js_10,
-    E_QP = ESP_CAN_Qpu_Js_1 + ESP_CAN_Qpu_Js_2 + ESP_CAN_Qpu_Js_3 + ESP_CAN_Qpu_Js_4 + ESP_CAN_Qpu_Js_5 + ESP_CAN_Qpu_Js_6 + ESP_CAN_Qpu_Js_7,
-    E_QI = ESP_CAN_Qil_Js_13 + ESP_CAN_Qil_Js_14 + ESP_CAN_Qil_Js_15 + ESP_CAN_Qil_Js_16 + ESP_CAN_Qil_Js_17,
-    Eplanttot = E_AU + E_PH + E_QP + E_QI
-  ) |>
-  dplyr::select(dates, Eplanttot, E_AU, E_PH, E_QP, E_QI)
+  # remove the zeroes generated previously
+  dplyr::mutate_at(dplyr::vars(dplyr::starts_with('ESP_CAN')),
+                   dplyr::funs(replace(., . == 0, NA)))
+transp_data_temp$E_Au <- rowMeans(transp_data_temp[,19:22], na.rm=TRUE)
+transp_data_temp$E_Ph <- rowMeans(transp_data_temp[,9:11], na.rm=TRUE)
+transp_data_temp$E_Qi <- rowMeans(transp_data_temp[,12:18], na.rm=TRUE)
+transp_data_temp$E_Qp <- rowMeans(transp_data_temp[,2:8], na.rm=TRUE)
+transp_data_temp2 <- transp_data_temp |>
+  dplyr::select(dates, E_Au, E_Ph, E_Qi, E_Qp)
+names(transp_data_temp2)[2:5] <-paste0("E_", c(AU_cohname, PH_cohname, QP_cohname, QI_cohname))
+
 
 measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::select(dates, swc_shallow) |>
   dplyr::group_by(dates) |>
   dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)) |>
-  dplyr::left_join(transp_data_temp, by = 'dates') |>
-  dplyr::mutate(SWC_err = NA) |>
-  dplyr::select(dates, SWC, SWC_err, Eplanttot, E_AU, E_PH, E_QP, E_QI) |>
-  as.data.frame()
-names(measuredData)[5:8] <-paste0("E_", c(AU_cohname, PH_cohname, QP_cohname, QI_cohname))
+  dplyr::left_join(transp_data_temp2, by = 'dates') 
 
-measuredData <- measuredData[!is.na(measuredData$dates),]
-
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-d = as.Date(meteoData$dates)
-meteoData <- meteoData[(d>="2011-01-01") & (d<="2012-12-31"),] #Select years
-d = as.Date(measuredData$dates)
-measuredData <- measuredData[(d>="2011-01-01") & (d<="2012-12-31"),] #Select years
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2011-01-01"),as.Date("2012-12-31"), by="day")
+evaluation_period <- seq(as.Date("2011-01-01"),as.Date("2012-12-31"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
+            'Vegetation',
+            'Sapflow'),
   Remark = c('Soil description from local samples',
-             'Understory composed of multiple species')
+             'Understory composed of multiple species',
+             'No scaling required (already per leaf area) but tree selection may be required')
 )
 
 # 13. SAVE DATA IN FOLDER -------------------------------------------------
