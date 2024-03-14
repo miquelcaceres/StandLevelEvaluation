@@ -1,9 +1,11 @@
 ## US. Sevilleta data script
 library(medfate)
+library(medfateutils)
 library(meteoland)
 library(dplyr)
 library(lubridate)
 library(readxl)
+
 data("SpParamsUS")
 
 # 0. LOAD DATA and METADATA -----------------------------------------------
@@ -21,7 +23,9 @@ siteData <- data.frame(
   Attribute = c('Plot name',
                 'Country',
                 'SAPFLUXNET code',
-                'Contributor (affiliation)',
+                'SAPFLUXNET contributor (affiliation)',
+                'FLUXNET/ICOS code',
+                'FLUXNET/ICOS contributor (affiliation)',
                 'Latitude (º)',
                 'Longitude (º)',
                 'Elevation (m)',
@@ -31,27 +35,35 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Description DOI'),
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
   Value = c("Sevilleta",
             "USA",
             site_md$si_code,
             "William Pockman (University of New Mexico, USA)",
-            site_md$si_lat,
-            site_md$si_long,
+            "",
+            "",
+            round(site_md$si_lat,6),
+            round(site_md$si_long,6),
             site_md$si_elev,
             1,
             0, #NW 
             "",
             "Sandy loam",
-            site_md$si_mat,
-            site_md$si_map,
-            "Mixed forest",
+            round(site_md$si_mat,1),
+            round(site_md$si_map),
+            "Mixed pine-juniper forest",
             0.71,
+            "10.1890/ES11-00369.1",
             "Pinus edulis, Juniperus monosperma",
-            "10.1890/ES11-00369.1")
+            "SpParamsUS",
+            "2010-2016",
+            "2010-2016")
 )
 
 
@@ -65,16 +77,20 @@ terrainData <- data.frame(
 
 # 3. TREE DATA ----------------------------------------------------------
 # stand basal area = 19.33
+# Piñon 2.3
+# Juniper 17
+pi_fr <- 2.3/19.33
+ju_fr <- 17/19.33
 treeData <- data.frame(
   Species = c("Pinus edulis", "Juniperus monosperma"),
   DBH = c(mean(plant_md$pl_dbh[plant_md$pl_species=="Pinus edulis"],na.rm=TRUE),
           mean(plant_md$pl_dbh[plant_md$pl_species=="Juniperus monosperma"],na.rm=TRUE)), # from paper
   Height = 100*c(mean(plant_md$pl_height[plant_md$pl_species=="Pinus edulis"],na.rm=TRUE),
                  mean(plant_md$pl_height[plant_md$pl_species=="Juniperus monosperma"],na.rm=TRUE)),
-  N = NA,
-  Z50 = NA,
-  Z95 = NA,
-  LAI = rep(0.71/2, 2) # No information to split LAI
+  N = c(77, 273),
+  Z50 = c(200,200),
+  Z95 = c(3400, 3400),
+  LAI = stand_md$st_lai*c(pi_fr, ju_fr) # No information to split LAI
 )
 f <-emptyforest()
 f$treeData <- treeData
@@ -127,7 +143,9 @@ soilData <- data.frame(
   sand = c(8.166667, 11.000000, 20.100000,20.100000),
   om = c(1.183333, 0.395000, 0.160000, 0),
   bd = c(1.48, 1.55,1.54,1.54),
-  rfc = c(18.96667,21.95000,60,90)
+  rfc = c(50,60,85,95),
+  VG_theta_sat = rep(0.2,4),
+  VG_theta_res = rep(0.001,4)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -178,25 +196,18 @@ Al2As_sp = 10000/c(mean(As2Al[plant_md$pl_species=="Pinus edulis"]),
 customParams$Al2As <- Al2As_sp
 
 # 10. MEASURED DATA --------------------------------------------------------
-# sapflow data, está en cm3 cm-2 h-1, y el timestep es 15 minutos, 
-# cal dividir per 4 (per tenir flow en els 15 min), multiplicar per As2Al, multiplicar per 0.001 (per passar a de cm3 a dm3)
-# Sumamos todo el día 
+# sapflow data, está en cm3 cm-2 h-1 of leaf area, y el timestep es 15 minutos, así que tenemos que
+# multiplicar por 15*60 segundos para los l/m-2 en el timestep.
+# Agrego los datos de sapflow por día, promedio todos los árboles 
 transp_data_temp <- sapf_data |>
+  dplyr::mutate_at(dplyr::vars(dplyr::starts_with('USA_PJS_P04')),
+                   dplyr::funs(.*0.25*1e4/1e3))|>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  dplyr::mutate(USA_PJS_P04_AMB_Ped_Js_1 = 0.25*USA_PJS_P04_AMB_Ped_Js_1*As2Al[1],
-                USA_PJS_P04_AMB_Jmo_Js_10 = 0.25*USA_PJS_P04_AMB_Jmo_Js_10*As2Al[2],
-                USA_PJS_P04_AMB_Ped_Js_2 = 0.25*USA_PJS_P04_AMB_Ped_Js_2*As2Al[3],
-                USA_PJS_P04_AMB_Ped_Js_3 = 0.25*USA_PJS_P04_AMB_Ped_Js_3*As2Al[4],
-                USA_PJS_P04_AMB_Ped_Js_4 = 0.25*USA_PJS_P04_AMB_Ped_Js_4*As2Al[5],
-                USA_PJS_P04_AMB_Ped_Js_5 = 0.25*USA_PJS_P04_AMB_Ped_Js_5*As2Al[6],
-                USA_PJS_P04_AMB_Jmo_Js_6 = 0.25*USA_PJS_P04_AMB_Jmo_Js_6*As2Al[7],
-                USA_PJS_P04_AMB_Jmo_Js_7 = 0.25*USA_PJS_P04_AMB_Jmo_Js_7*As2Al[8],
-                USA_PJS_P04_AMB_Jmo_Js_8 = 0.25*USA_PJS_P04_AMB_Jmo_Js_8*As2Al[9],
-                USA_PJS_P04_AMB_Jmo_Js_9 = 0.25*USA_PJS_P04_AMB_Jmo_Js_9*As2Al[10])|>
-  dplyr::group_by(dates)  |>
-  dplyr::summarise_at(dplyr::vars(dplyr::starts_with('USA_PJS_P04_AMB')),
-                      dplyr::funs(sum(., na.rm = TRUE)))  |>
-  dplyr::mutate_at(dplyr::vars(dplyr::starts_with('USA_PJS_P04_AMB')),
+  dplyr::group_by(dates) |>
+  dplyr::summarise_at(dplyr::vars(dplyr::starts_with('USA_PJS_P04')),
+                      dplyr::funs(sum(., na.rm = TRUE))) |>
+  # remove the zeroes generated previously
+  dplyr::mutate_at(dplyr::vars(dplyr::starts_with('USA_PJS_P04')),
                    dplyr::funs(replace(., . == 0, NA)))
 
 transp_data_temp2<-data.frame(dates = transp_data_temp$dates,
@@ -208,16 +219,16 @@ measuredData <- env_data %>%
   group_by(dates) |>
   summarise(SWC = mean(swc_shallow),
             SWC_2 = mean(swc_deep)) |>
-  dplyr::mutate(SWC_err = NA)|>
   dplyr::full_join(transp_data_temp2, by = 'dates')|>
   dplyr::arrange(dates) 
-names(measuredData)[5:6] = c(paste0("E_", PE_cohname),
+names(measuredData)[4:5] = c(paste0("E_", PE_cohname),
                              paste0("E_", JM_cohname))
 
-# 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
+# 11. SIMULATION/EVALUATION PERIOD ---------------------------------------------------
+simulation_period <- seq(as.Date("2010-01-01"),as.Date("2016-12-31"), by="day")
 evaluation_period <- seq(as.Date("2010-01-01"),as.Date("2016-12-31"), by="day")
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
+meteoData <- meteoData |> filter(dates %in% simulation_period)
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
