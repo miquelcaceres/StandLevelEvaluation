@@ -15,7 +15,8 @@ site_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_site_md.csv')
 stand_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_species_md.csv')
-
+env_data_antoine <- read.csv('SourceData/Tables/Lotschental/Environmental data for miquel - 2024-03-19.csv')|>
+  tidyr::pivot_wider(names_from = "Variable", values_from  ="Value")
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
