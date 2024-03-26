@@ -1,25 +1,22 @@
 
 ## data preparation
-sites = c("WOMBAT", "EUCFACE",
+all_sites = c("WOMBAT", "EUCFACE",
+          "SOROE",
           "FRAPUE", "FRAHES", "FONTAINEBLEAU","FONBLA",
-          "COLLELONGO",
           "ISRYAT",
+          "COLLELONGO",
           "MITRA",
           "ESPRIN", "QVALLCEBRE", "PVALLCEBRE", "PRADES", "CANBALASC", "ESPALTARM", "RONDA",
-          "DAVOS",
+          "DAVOS", "LOTSCHENTAL",
           "USAMORSF", "SEVILLETA")
 ## Model runs & evaluation
 wd = getwd()
-medfatereports::run_reports(sites= sites, model="spwb",
-                            confs="granier", wd = wd)
-medfatereports::run_reports(sites= sites, model="spwb", 
-                            confs="sperry", wd = wd)
-medfatereports::run_reports(sites= sites, model="spwb", 
-                            confs="sureau", wd = wd)
-
-# medfatereports::run_reports(sites= sites, model="growth",
-#                             confs="granier", wd = wd)
-# medfatereports::run_reports(sites= sites, model="growth",
-#                             confs="sperry", wd = wd)
-# medfatereports::run_reports(sites= sites, model="growth",
-#                             confs="sureau", wd = wd)
+for(site in all_sites) {
+  print(site)
+  medfatereports::run_reports(sites= site, model="spwb",
+                              confs="granier", wd = wd)
+  medfatereports::run_reports(sites= site, model="spwb", 
+                              confs="sperry", wd = wd)
+  medfatereports::run_reports(sites= site, model="spwb", 
+                              confs="sureau", wd = wd)
+}

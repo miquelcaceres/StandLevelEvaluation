@@ -106,12 +106,15 @@ shrubData <- data.frame(
 # there is no seed info
 
 
-# 6. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA / CUSTOM CONTROL ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'COLLELONGO',
   SpParamsName = "SpParamsFR",
   herbCover = 0, herbHeight = 0,
   Validation = 'global', Definitive = 'No'
+)
+customControl <- data.frame(
+  freeDrainage = FALSE
 )
 
 # 7. SOIL DATA ------------------------------------------------------------
@@ -121,15 +124,15 @@ soilData <- data.frame(
   widths = c(300, 700, 2000),
   clay = c(27.23333, 30.90000, 31.20000),
   sand = c(32.50, 32.15, 33.70),
-  om = c(5.916667, 1.955000, 1.430000),
-  bd = c(0.97, 1.37,1.44),
+  om = c(3, 1.955000, 1.430000),
+  bd = c(1.37, 1.37,1.44),
   rfc = c(17.4,20.9,22.8)
 )
 #Usually the rock fragments are underestimated from soilgrids so we force the value
-soilData$clay[1] <- 15 #Mean value from field data (A1-A2 horizons 0-400mm)
-soilData$sand[1] <- 40.45 #Mean value from field data (A1-A2 horizons 0-400mm)
-soilData$clay[2] <- 19.2 #Mean value from field data (B1-B2t horizons 400-1100mm)
-soilData$sand[2] <- 30 #Mean value from field data (B1-B2t horizons 400-1100mm)
+# soilData$clay[1] <- 15 #Mean value from field data (A1-A2 horizons 0-400mm)
+# soilData$sand[1] <- 40.45 #Mean value from field data (A1-A2 horizons 0-400mm)
+# soilData$clay[2] <- 19.2 #Mean value from field data (B1-B2t horizons 400-1100mm)
+# soilData$sand[2] <- 30 #Mean value from field data (B1-B2t horizons 400-1100mm)
 
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -246,6 +249,9 @@ write.table(shrubData, file = file.path(folder_name, 'COLLELONGO_shrubData.txt')
             row.names = FALSE, sep = '\t')
 
 write.table(miscData, file = file.path(folder_name, 'COLLELONGO_miscData.txt'),
+            row.names = FALSE, sep = '\t')
+
+write.table(customControl, file = file.path(folder_name, 'COLLELONGO_customControl.txt'),
             row.names = FALSE, sep = '\t')
 
 write.table(meteoData, file = file.path(folder_name, 'COLLELONGO_meteoData.txt'),

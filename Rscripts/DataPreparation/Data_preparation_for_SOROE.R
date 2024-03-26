@@ -105,14 +105,16 @@ shrubData <- data.frame(
 # there is no seed info
 
 
-# 6. MISC DATA ------------------------------------------------------------
+# 6. MISC DATA / CUSTOM CONTROL ------------------------------------------------------------
 miscData <- data.frame(
   ID = 'SOROE',
   SpParamsName = "SpParamsFR",
   herbCover = 0, herbHeight = 0,
   Validation = 'global', Definitive = 'No'
 )
-
+customControl <- data.frame(
+  freeDrainage = TRUE
+)
 # 7. SOIL DATA ------------------------------------------------------------
 # sf_pt <- sf::st_sfc(sf::st_point(c(11.6446, 55.4859)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(sf_pt, widths = c(400, 200, 3000))
@@ -126,10 +128,10 @@ soilData <- data.frame(
 )
 #Usually the rock fragments are underestimated from soilgrids so we force the value
 #Soroe_soil_props$widths <- 1800
-soilData$clay[1] <- 25.10564112 #From PROFOUND data
-soilData$sand[1] <- 50.35045536 #From PROFOUND data
-soilData$clay[2] <- 39.17793701 #From PROFOUND data
-soilData$sand[2] <- 34.30827219 #From PROFOUND data
+# soilData$clay[1] <- 25.10564112 #From PROFOUND data
+# soilData$sand[1] <- 50.35045536 #From PROFOUND data
+# soilData$clay[2] <- 39.17793701 #From PROFOUND data
+# soilData$sand[2] <- 34.30827219 #From PROFOUND data
 
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))

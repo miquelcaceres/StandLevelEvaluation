@@ -15,8 +15,10 @@ site_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_site_md.csv')
 stand_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_stand_md.csv')
 plant_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_plant_md.csv')
 species_md <- read.csv('SourceData/Tables/Lotschental/CHE_LOT_NOR_species_md.csv')
-env_data_antoine <- read.csv('SourceData/Tables/Lotschental/Environmental data for miquel - 2024-03-19.csv')|>
-  tidyr::pivot_wider(names_from = "Variable", values_from  ="Value")
+meteo_blatten <- read.csv('SourceData/Tables/Lotschental/blatten_data.csv', sep = ";", blank.lines.skip = TRUE,
+                          na.strings = "-")
+env_antoine <- read.csv('SourceData/Tables/Lotschental/Environmental data for miquel - 2024-03-19.csv') |>
+  tidyr::pivot_wider(names_from = "Variable", values_from = "Value")
 
 # 1. SITE INFORMATION -----------------------------------------------------
 siteData <- data.frame(
@@ -35,31 +37,35 @@ siteData <- data.frame(
                 'Soil texture',
                 'MAT (ºC)',
                 'MAP (mm)',
-                'Stand description',
+                'Forest stand',
                 'Stand LAI',
+                'Stand description DOI',
                 'Species simulated',
-                'Period simulated',
-                'Description DOI'),
-  Value = c("Lotschental",
+                'Species parameter table',
+                'Simulation period',
+                'Evaluation period'),
+  Value = c("Lötschental",
             "Switzerland",
             site_md$si_code,
             "Patrick Fonti (WSL)",
             "",
             "",
-            site_md$si_lat,
-            site_md$si_long,
+            round(site_md$si_lat,4),
+            round(site_md$si_long,4),
             site_md$si_elev,
             36.87, # 60%
             0, #N 
-            "",
+            "Calcareous",
             "Loam",
             round(site_md$si_mat,1),
             round(site_md$si_map),
             "Mixed evergreen Norway spruce and deciduous European larch forest",
-            NA,
+            3,
+            "10.1016/j.agrformet.2012.08.002",
             "Picea abies, Larix decidua subsp. decidua",
-            "2006-2015",
-            "10.1016/j.agrformet.2012.08.002")
+            "SpParamsFR",
+            "2013-2015",
+            "2013-2015")
 )
 
 
@@ -77,9 +83,9 @@ terrainData <- data.frame(
 # Density 
 treeData <- data.frame(
   Species = c("Larix decidua subsp. decidua", "Picea abies"),
-  DBH = c(mean(plant_md$pl_dbh[plant_md$pl_species=="Larix decidua subsp. decidua"],na.rm=TRUE),
+  DBH = c(mean(plant_md$pl_dbh[plant_md$pl_species=="Larix decidua"],na.rm=TRUE),
           mean(plant_md$pl_dbh[plant_md$pl_species=="Picea abies"],na.rm=TRUE)), # from paper
-  Height = 100*c(mean(plant_md$pl_height[plant_md$pl_species=="Larix decidua subsp. decidua"],na.rm=TRUE),
+  Height = 100*c(mean(plant_md$pl_height[plant_md$pl_species=="Larix decidua"],na.rm=TRUE),
                  mean(plant_md$pl_height[plant_md$pl_species=="Picea abies"],na.rm=TRUE)),
   N = 732*c(26.4, 29.43)/55.87,
   Z50 = NA,
@@ -89,6 +95,7 @@ treeData <- data.frame(
 f <-emptyforest()
 f$treeData <- treeData
 summary(f, SpParamsFR)
+
 
 # 4. SHRUB DATA -----------------------------------------------------------
 shrubData <- data.frame(
@@ -107,37 +114,55 @@ shrubData <- data.frame(
 miscData <- data.frame(
   ID = 'LOTSCHENTAL',
   SpParamsName = "SpParamsFR",
-  herbCover = 5, herbHeight = 20,
+  herbCover = 0, herbHeight = 0,
   Validation = 'global', Definitive = 'No'
 )
 
 # 7. METEO DATA -----------------------------------------------------------
 meteoData <- env_data |>
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')),
+                rh = (vpd*100)/(0.61078*exp((17.269*ta)/(237.3+ta)))) |> # no hay rh, asi que transformo la vpd
   dplyr::group_by(dates) |>
   dplyr::summarise(MinTemperature = min(ta, na.rm = TRUE),
                    MaxTemperature = max(ta, na.rm = TRUE),
                    MinRelativeHumidity = min(rh, na.rm = TRUE),
-                   MaxRelativeHumidity = max(rh, na.rm = TRUE),
-                   WindSpeed = mean(ws, na.rm = TRUE),
-                   Radiation = (sum((sw_in * 900), na.rm = TRUE)/(24*3600)), # W/m2, a W/m2 en el día
-                   Precipitation = sum(precip, na.rm = TRUE)) |>
+                   MaxRelativeHumidity = max(rh, na.rm = TRUE)) |>
+  dplyr::mutate_at(dplyr::vars(2:5),
+                   dplyr::funs(replace(., is.infinite(.), NA))) |>
+  dplyr::mutate_at(dplyr::vars(2:5),
+                   dplyr::funs(replace(., is.nan(.), NA))) 
+
+meteoData_blatten <- meteo_blatten |>
+  dplyr::mutate(dates = as.Date(substr(time,1,8), format="%Y%m%d")) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(MinTemperature = min(tre200h0, na.rm = TRUE),
+                   MaxTemperature = max(tre200h0, na.rm = TRUE),
+                   MinRelativeHumidity = min(ure200h0, na.rm = TRUE),
+                   MaxRelativeHumidity = max(ure200h0, na.rm = TRUE),
+                   WindSpeed = mean(fkl010h0, na.rm = TRUE),
+                   Radiation = mean(gre000h0, na.rm = TRUE), 
+                   Precipitation = sum(rre150h0, na.rm = TRUE)) |>
   dplyr::mutate(Radiation = Radiation*3600*24/1000000) |>
   dplyr::mutate_at(dplyr::vars(2:5),
                    dplyr::funs(replace(., is.infinite(.), NA))) |>
   dplyr::mutate_at(dplyr::vars(2:5),
                    dplyr::funs(replace(., is.nan(.), NA))) 
 
+meteoData <- meteoData |>
+  dplyr::left_join(meteoData_blatten[,c("dates", "Radiation", "Precipitation", "WindSpeed")], by="dates")
+
 # 8. SOIL DATA ------------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
 soilData <- data.frame(
-  widths = c(300, 700, 1000, 2500),
+  widths = c(300, 700, 1000, 2000),
   clay = c(23.60, 22.05, 22.80, 22.80),
   sand = c(42.43333, 46.25000, 46.10000,46.10000),
   om = c(6.896667, 2.560000, 2.350000, 0),
   bd = c(1.140, 1.415,1.490,1.490),
-  rfc = c(14.23333,16.80000,60,90)
+  rfc = c(45,80,90,99),
+  VG_theta_sat = rep(0.3, 4),
+  VG_theta_res = rep(0.09, 4)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -146,10 +171,10 @@ sum(soil_waterExtractable(s, model="VG", minPsi = -4))
 # 9. CUSTOM PARAMS --------------------------------------------------------
 LD_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Larix decidua subsp. decidua"]
 PA_index = SpParamsFR$SpIndex[SpParamsFR$Name=="Picea abies"]
-PE_cohname = paste0("T1_", LD_index)
-JM_cohname = paste0("T2_", PA_index)
-pe<- 1
-jm<-2
+LD_cohname = paste0("T1_", LD_index)
+PA_cohname = paste0("T2_", PA_index)
+ld<- 1
+pa<-2
 
 customParams <- data.frame(
   Species = treeData$Species,
@@ -181,28 +206,26 @@ customParams <- data.frame(
   Gs_slope = NA,
   Al2As = NA) 
 
-As2Al = plant_md[['pl_sapw_area']]/plant_md[['pl_leaf_area']] # cm2/m2
-Al2As_sp = 10000/c(mean(As2Al[plant_md$pl_species=="Larix decidua subsp. decidua"]),
-                   mean(As2Al[plant_md$pl_species=="Picea abies"]))
-
+Al2As_sp = c(SpParamsFR$Al2As[SpParamsFR$Name=="Larix"],
+             SpParamsFR$Al2As[SpParamsFR$Name=="Picea abies"])
 customParams$Al2As <- Al2As_sp
-
+customParams$LeafAngle <- c(30,42)
+customParams$LeafAngleSD <- c(21,2)
+customParams$Kmax_stemxylem[ld] <- 20  #Larix sibirica
+  
 # 10. MEASURED DATA --------------------------------------------------------
 # sapflow data, está en cm3 cm-2 h-1, y el timestep es 15 minutos, 
-# cal dividir per 4 (per tenir flow en els 15 min), multiplicar per As2Al, multiplicar per 0.001 (per passar a de cm3 a dm3)
+# cal dividir per 4 (per tenir flow en els 15 min), dividir por Al2As, multiplicar per 0.001 (per passar a de cm3 a dm3)
 # Sumamos todo el día 
+sapflow_factor <- 0.25/1000
 transp_data_temp <- sapf_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  dplyr::mutate(CHE_LOT_NOR_Ped_Js_1 = 0.25*CHE_LOT_NOR_Ped_Js_1*As2Al[1],
-                CHE_LOT_NOR_Jmo_Js_10 = 0.25*CHE_LOT_NOR_Jmo_Js_10*As2Al[2],
-                CHE_LOT_NOR_Ped_Js_2 = 0.25*CHE_LOT_NOR_Ped_Js_2*As2Al[3],
-                CHE_LOT_NOR_Ped_Js_3 = 0.25*CHE_LOT_NOR_Ped_Js_3*As2Al[4],
-                CHE_LOT_NOR_Ped_Js_4 = 0.25*CHE_LOT_NOR_Ped_Js_4*As2Al[5],
-                CHE_LOT_NOR_Ped_Js_5 = 0.25*CHE_LOT_NOR_Ped_Js_5*As2Al[6],
-                CHE_LOT_NOR_Jmo_Js_6 = 0.25*CHE_LOT_NOR_Jmo_Js_6*As2Al[7],
-                CHE_LOT_NOR_Jmo_Js_7 = 0.25*CHE_LOT_NOR_Jmo_Js_7*As2Al[8],
-                CHE_LOT_NOR_Jmo_Js_8 = 0.25*CHE_LOT_NOR_Jmo_Js_8*As2Al[9],
-                CHE_LOT_NOR_Jmo_Js_9 = 0.25*CHE_LOT_NOR_Jmo_Js_9*As2Al[10])|>
+  dplyr::mutate(CHE_LOT_NOR_Lde_Js_1 = sapflow_factor*CHE_LOT_NOR_Lde_Js_1/(Al2As_sp[1]/10000),
+                CHE_LOT_NOR_Lde_Js_2 = sapflow_factor*CHE_LOT_NOR_Lde_Js_2/(Al2As_sp[1]/10000),
+                CHE_LOT_NOR_Lde_Js_3 = sapflow_factor*CHE_LOT_NOR_Lde_Js_3/(Al2As_sp[1]/10000),
+                CHE_LOT_NOR_Pab_Js_4 = sapflow_factor*CHE_LOT_NOR_Pab_Js_4/(Al2As_sp[2]/10000),
+                CHE_LOT_NOR_Pab_Js_5 = sapflow_factor*CHE_LOT_NOR_Pab_Js_5/(Al2As_sp[2]/10000),
+                CHE_LOT_NOR_Pab_Js_6 = sapflow_factor*CHE_LOT_NOR_Pab_Js_6/(Al2As_sp[2]/10000))|>
   dplyr::group_by(dates)  |>
   dplyr::summarise_at(dplyr::vars(dplyr::starts_with('CHE_LOT_NOR')),
                       dplyr::funs(sum(., na.rm = TRUE)))  |>
@@ -210,31 +233,56 @@ transp_data_temp <- sapf_data |>
                    dplyr::funs(replace(., . == 0, NA)))
 
 transp_data_temp2<-data.frame(dates = transp_data_temp$dates,
-                              E_Ped = rowMeans(transp_data_temp[,c(2,3,4,5,6)], na.rm=TRUE),
-                              E_JMo = rowMeans(transp_data_temp[, c(7,8,9,10,11)], na.rm=TRUE))
+                              E_Lde = rowMeans(transp_data_temp[,c(2,3,4)], na.rm=TRUE),
+                              E_Pab = rowMeans(transp_data_temp[, c(5,6,7)], na.rm=TRUE))
 
-measuredData <- env_data %>%
-  dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
-  group_by(dates) |>
-  summarise(SWC = mean(swc_shallow),
-            SWC_2 = mean(swc_deep)) |>
-  dplyr::mutate(SWC_err = NA)|>
-  dplyr::full_join(transp_data_temp2, by = 'dates')|>
+# measuredData <- env_data %>%
+#   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
+#   group_by(dates) |>
+#   summarise(SWC = mean(swc_shallow),
+#             SWC_2 = mean(swc_deep)) |>
+#   dplyr::mutate(SWC_err = NA)|>
+#   dplyr::full_join(transp_data_temp2, by = 'dates')|>
+#   dplyr::arrange(dates) 
+# names(measuredData)[5:6] = c(paste0("E_", LD_cohname),
+#                              paste0("E_", PA_cohname))
+
+measuredData <- env_antoine |>
+  dplyr::mutate(dates = as.Date(substr(Date_time,1,10)),
+                SWC = (`SM0 10cm [unitless]` + `SM1 10cm [unitless]`)/200) |>
+  dplyr::select(dates, SWC) |>
+  dplyr::group_by(dates) |>
+  dplyr::summarise(SWC = mean(SWC, na.rm=TRUE), .groups = "drop") |>
+  dplyr::right_join(transp_data_temp2, by = 'dates')|>
   dplyr::arrange(dates) 
-names(measuredData)[5:6] = c(paste0("E_", PE_cohname),
-                             paste0("E_", JM_cohname))
+names(measuredData)[3:4] = c(paste0("E_", LD_cohname),
+                             paste0("E_", PA_cohname))
 
+ 
 # 11. EVALUATION PERIOD ---------------------------------------------------
-# Select evaluation dates
-evaluation_period <- seq(as.Date("2007-01-01"),as.Date("2008-12-31"), by="day")
-meteoData <- meteoData |> filter(dates %in% evaluation_period)
+simulation_period <- seq(as.Date("2013-05-30"),as.Date("2015-12-09"), by="day")
+evaluation_period <- seq(as.Date("2013-05-30"),as.Date("2015-12-09"), by="day")
+meteoData <- meteoData |> filter(dates %in% simulation_period)
+meteoData_blatten <- meteoData_blatten |> filter(dates %in% simulation_period)
+measuredData <- measuredData |> filter(dates %in% evaluation_period)
+
+#fill gaps with meteodata blatten
+meteoData$MinTemperature[is.na(meteoData$MinTemperature)] <- meteoData_blatten$MinTemperature[is.na(meteoData$MinTemperature)]
+meteoData$MaxTemperature[is.na(meteoData$MaxTemperature)] <- meteoData_blatten$MaxTemperature[is.na(meteoData$MaxTemperature)]
+meteoData$MinRelativeHumidity[is.na(meteoData$MinRelativeHumidity)] <- meteoData_blatten$MinRelativeHumidity[is.na(meteoData$MinRelativeHumidity)]
+meteoData$MaxRelativeHumidity[is.na(meteoData$MaxRelativeHumidity)] <- meteoData_blatten$MaxRelativeHumidity[is.na(meteoData$MaxRelativeHumidity)]
+meteoData$Radiation[is.na(meteoData$Radiation)] <- meteoData$Radiation[which(is.na(meteoData$Radiation))+1]
 
 # 12. REMARKS -------------------------------------------------------------
 remarks <- data.frame(
   Title = c('Soil',
-            'Vegetation'),
+            'Vegetation',
+            'Weather',
+            'Soil moisture'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
-             'Understory not considered')
+             'Understory not considered. LAI not available',
+             'Complemented with weather station in the same valley for Radiation, Precipitation and WindSpeed',
+             'Provided by A. Cabon')
 )
 
 
