@@ -64,8 +64,8 @@ siteData <- data.frame(
             "10.1016/j.agrformet.2012.08.002",
             "Picea abies, Larix decidua subsp. decidua",
             "SpParamsFR",
-            "2013-2015",
-            "2013-2015")
+            "2013-2016",
+            "2013-2016")
 )
 
 
@@ -151,6 +151,9 @@ meteoData_blatten <- meteo_blatten |>
 meteoData <- meteoData |>
   dplyr::left_join(meteoData_blatten[,c("dates", "Radiation", "Precipitation", "WindSpeed")], by="dates")
 
+meteoData <- dplyr::bind_rows(meteoData,
+                              meteoData_blatten[!(meteoData_blatten$dates %in% meteoData$dates),])
+
 # 8. SOIL DATA ------------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
@@ -161,8 +164,8 @@ soilData <- data.frame(
   om = c(6.896667, 2.560000, 2.350000, 0),
   bd = c(1.140, 1.415,1.490,1.490),
   rfc = c(45,80,90,99),
-  VG_theta_sat = rep(0.3, 4),
-  VG_theta_res = rep(0.09, 4)
+  VG_theta_sat = rep(0.28, 4),
+  VG_theta_res = rep(0.07, 4)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -249,19 +252,19 @@ transp_data_temp2<-data.frame(dates = transp_data_temp$dates,
 
 measuredData <- env_antoine |>
   dplyr::mutate(dates = as.Date(substr(Date_time,1,10)),
-                SWC = (`SM0 10cm [unitless]` + `SM1 10cm [unitless]`)/200) |>
+                SWC = rowMeans(env_antoine[,names(env_antoine) %in% c("SM0 10cm [unitless]", "SM2 10cm [unitless]","SM3 10cm [unitless]","SM4 10cm [unitless]")], na.rm=TRUE)/100) |>
   dplyr::select(dates, SWC) |>
   dplyr::group_by(dates) |>
   dplyr::summarise(SWC = mean(SWC, na.rm=TRUE), .groups = "drop") |>
-  dplyr::right_join(transp_data_temp2, by = 'dates')|>
+  dplyr::full_join(transp_data_temp2, by = 'dates')|>
   dplyr::arrange(dates) 
 names(measuredData)[3:4] = c(paste0("E_", LD_cohname),
                              paste0("E_", PA_cohname))
 
  
 # 11. EVALUATION PERIOD ---------------------------------------------------
-simulation_period <- seq(as.Date("2013-05-30"),as.Date("2015-12-09"), by="day")
-evaluation_period <- seq(as.Date("2013-05-30"),as.Date("2015-12-09"), by="day")
+simulation_period <- seq(as.Date("2013-05-30"),as.Date("2016-12-31"), by="day")
+evaluation_period <- seq(as.Date("2013-05-30"),as.Date("2016-12-31"), by="day")
 meteoData <- meteoData |> filter(dates %in% simulation_period)
 meteoData_blatten <- meteoData_blatten |> filter(dates %in% simulation_period)
 measuredData <- measuredData |> filter(dates %in% evaluation_period)
@@ -281,7 +284,7 @@ remarks <- data.frame(
             'Soil moisture'),
   Remark = c('Taken from SoilGrids with theta_sat and theta_res modified',
              'Understory not considered. LAI not available',
-             'Complemented with weather station in the same valley for Radiation, Precipitation and WindSpeed',
+             'Complemented with weather station in the same valley for Radiation, Precipitation and WindSpeed (2013-2016); and all variables for 2016',
              'Provided by A. Cabon')
 )
 

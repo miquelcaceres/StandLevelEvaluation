@@ -134,6 +134,8 @@ meteoData <- env_data |>
   dplyr::mutate_at(dplyr::vars(2:5),
                    dplyr::funs(replace(., is.nan(.), NA))) 
 
+meteoData$Radiation[meteoData$Radiation==0] = 8
+
 # 8. SOIL DATA ------------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2500))
