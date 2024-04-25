@@ -117,12 +117,12 @@ miscData <- data.frame(
 # extracted from the paper (Limousin 2009) y adaptado como Prades:
 # "bulk density" de PRADES:
 soilData <- data.frame(
-  widths = c(300, 200, 1000, 2000),
-  clay = c(31, 28.6, 28.6, 28.6),
-  sand = c(9.7, 8.8, 8.8, 8.8), #14
-  om = c(NA, NA, NA, NA),
-  bd = c(1.23, 1.50, 1.50, 1.50),
-  rfc = c(15, 20, 70, 90)
+  widths = c(100, 100, 100, 200, 1000, 2000),
+  clay = c(31, 31, 31, 28.6, 28.6, 28.6),
+  sand = c(9.7, 9.7, 9.7, 8.8, 8.8, 8.8), #14
+  om = c(NA, NA, NA, NA, NA, NA),
+  bd = c(1.23, 1.3, 1.3, 1.50, 1.50, 1.50),
+  rfc = c(5,10,15, 20, 70, 90)
 )
 sum(soil_waterExtractable(soil(soilData), model="VG", minPsi = -4))
 
@@ -252,7 +252,7 @@ names(measuredData)[2] <- paste0("E_", QP_cohname)
 smcData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))
+  dplyr::summarise(SWC.2 = mean(swc_shallow, na.rm = TRUE))
 
 measuredData <- measuredData |>
   dplyr::left_join(smcData, by="dates")

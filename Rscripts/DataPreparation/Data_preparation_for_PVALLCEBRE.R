@@ -116,12 +116,12 @@ miscData <- data.frame(
 
 # 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
-  widths = c(300, 350, 350),
-  clay = c(22, 18, 18),
-  sand = c(59, 62, 62), 
-  om = c(4, 1, 0),
-  bd = c(1.18, 1.48, 1.5),
-  rfc = c(19, 19, 50)
+  widths = c(100,100,100, 350, 350),
+  clay = c(22, 21, 20, 18, 18),
+  sand = c(59, 60, 61, 62, 62), 
+  om = c(4, 3, 2, 1, 0),
+  bd = c(1.18, 1.28, 1.38, 1.48, 1.5),
+  rfc = c(10, 15, 19, 20, 50)
 )
 sum(soil_waterExtractable(soil(soilData), model="VG", minPsi = -4))
 
@@ -256,7 +256,7 @@ names(measuredData)[2] <- paste0("E_", PS_cohname)
 smcData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::group_by(dates) |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))
+  dplyr::summarise(SWC.2 = mean(swc_shallow, na.rm = TRUE))
 
 measuredData <- measuredData |>
   dplyr::left_join(smcData, by="dates")

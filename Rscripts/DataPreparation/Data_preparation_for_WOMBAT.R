@@ -118,12 +118,12 @@ miscData <- data.frame(
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long,site_md$si_lat)), crs = 4326)
 # soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 700, 1000, 2000))
 soilData <- data.frame(
-  widths =  c(300, 700, 1000, 2000),
-  clay = c(24.30, 35.25, 33.10, 33.10),
-  sand = c(55.13333, 44.60000, 45.90000,45.90000),
-  om = c(8.340, 4.465, 4.160, 0),
-  bd = c(0.9866667, 1.2100000,1.2800000,1.350000),
-  rfc = c(13.60,14.35,50,90)
+  widths =  c(100, 200, 700, 1000, 2000),
+  clay = c(24.30, 25, 35.25, 33.10, 33.10),
+  sand = c(55.13333, 50, 44.60000, 45.90000,45.90000),
+  om = c(8.340, 6, 4.465, 4.160, 0),
+  bd = c(0.9866667, 1.1, 1.2100000,1.2800000,1.350000),
+  rfc = c(13.60,14, 14.35,50,90)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -233,7 +233,7 @@ measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')))  |>
   dplyr::select(dates, swc_shallow)  |>
   dplyr::group_by(dates)  |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))  |>
+  dplyr::summarise(SWC.1 = mean(swc_shallow, na.rm = TRUE))  |>
   dplyr::left_join(fluxData, by = 'dates') |>
   dplyr::left_join(transp_data_temp2, by = 'dates')
 

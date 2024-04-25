@@ -89,7 +89,7 @@ treeData <- data.frame(
                  mean(plant_md$pl_height[plant_md$pl_species=="Juniperus monosperma"],na.rm=TRUE)),
   N = c(77, 273),
   Z50 = c(200,200),
-  Z95 = c(3400, 3400),
+  Z95 = c(2500, 2500),
   LAI = stand_md$st_lai*c(pi_fr, ju_fr) # No information to split LAI
 )
 f <-emptyforest()
@@ -145,7 +145,7 @@ soilData <- data.frame(
   sand = c(8.166667, 11.000000, 20.100000,20.100000),
   om = c(1.183333, 0.395000, 0.160000, 0),
   bd = c(1.48, 1.55,1.54,1.54),
-  rfc = c(50,60,85,95),
+  rfc = c(50,60,80,90),
   VG_theta_sat = rep(0.2,4),
   VG_theta_res = rep(0.001,4)
 )
@@ -190,7 +190,7 @@ customParams <- data.frame(
   Gs_P50 = NA,
   Gs_slope = NA,
   Al2As = NA) 
-
+customParams$Kmax_stemxylem <- c(0.25, 0.25)
 As2Al = plant_md[['pl_sapw_area']]/plant_md[['pl_leaf_area']] # cm2/m2
 Al2As_sp = 10000/c(mean(As2Al[plant_md$pl_species=="Pinus edulis"]),
                    mean(As2Al[plant_md$pl_species=="Juniperus monosperma"]))

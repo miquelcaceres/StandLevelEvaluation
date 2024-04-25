@@ -116,14 +116,14 @@ miscData <- data.frame(
 
 # 7. SOIL DATA ------------------------------------------------------------
 # coords_sf <- sf::st_sfc(sf::st_point(c(site_md$si_long+0.01,site_md$si_lat)), crs = 4326)
-# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 600, 1100, 2500))
+# soilData <- medfateutils::soilgridsParams(coords_sf,  c(300, 300, 400, 1000, 2500))
 soilData <- data.frame(
-  widths = c(300, 600, 1100, 2500),
-  clay = c(13.53333, 14.67143, 15.22000, 15.22000),
-  sand = c(50.96667, 51.02857, 51.68000,52.10000),
-  om = c(9.176667, 3.307143, 3.546000, 3.550000),
-  bd = c(1.016667, 1.338571,1.406000,1.410000),
-  rfc = c(12.73333,22.98571,80,90)
+  widths = c(300, 300, 400, 1000, 2500),
+  clay = c(13.53333, 14.20000, 15.30000, 15.20000, 15.20000),
+  sand = c(50.96667, 51.80000, 50.00000,52.10000,52.10000),
+  om = c(9.176667, 3.140000, 3.530000, 3.550000,3.550000),
+  bd = c(1.016667, 1.300000,1.390000,1.410000,1.410000),
+  rfc = c(12.73333,22.30000,23.90000,80,90)
 )
 s = soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -239,9 +239,10 @@ fluxData <- fluxnet_data |>
 
 measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')))  |>
-  dplyr::select(dates, swc_shallow)  |>
+  dplyr::select(dates, swc_shallow, swc_deep)  |>
   dplyr::group_by(dates)  |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))  |>
+  dplyr::summarise(SWC.1 = mean(swc_shallow, na.rm = TRUE), # 20 cm
+                   SWC.3 = mean(swc_deep, na.rm = TRUE))  |> # 80 cm
   dplyr::left_join(transp_data_temp2, by = 'dates') |>
   dplyr::full_join(fluxData, by = 'dates') |>
   dplyr::arrange(dates)

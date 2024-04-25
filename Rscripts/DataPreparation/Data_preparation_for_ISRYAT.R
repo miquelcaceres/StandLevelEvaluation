@@ -83,8 +83,8 @@ treeData <- data.frame(
   DBH = 19.8, # from paper
   Height = 1020, # from paper
   N = 300,
-  Z50 = 400,  
-  Z95 = 2500,
+  Z50 = 150,  
+  Z95 = 2000,
   LAI = 1.7
 )
 f = emptyforest()
@@ -116,14 +116,14 @@ miscData <- data.frame(
 
 # 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
-  widths = c(200, 300, 3500),
-  sand = rep(31, 3),
-  clay = rep(28, 3),
-  om = c(6,3,1),
-  bd = rep(1.45, 3),
-  rfc = c(75, 75, 85),
-  VG_theta_sat = rep(0.45, 3),
-  VG_theta_res = rep(0.003, 3)
+  widths = c(20, 30, 100, 100, 100, 150, 500, 3000),
+  sand = rep(31, 8),
+  clay = c(10, 30, 30, 40, 42, 42, 42, 42),
+  om = c(40,3,2,2,1,1,1,0),
+  bd = c(0.3, 1.65, 1.57, 1.61, 1.54, 1.54, 1.54, 1.54),
+  rfc = c(0,0,5,10,20,20,30, 90),
+  VG_theta_sat = c(0.7, 0.3, 0.3, 0.3, 0.3, 0.33, 0.33, 0.33),
+  VG_theta_res = c(0.05, 0.05, 0.05, 0.08, 0.09, 0.11, 0.11, 0.11)
 )
 s<-soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -283,9 +283,9 @@ measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid'))) |>
   dplyr::select(dates, swc_shallow, swc_deep) |>
   dplyr::group_by(dates) |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE)/100, # soil water content in env_data as %
-                   SWC_2 = mean(swc_deep, na.rm = TRUE)/100) |>
-  dplyr::select(dates, SWC, SWC_2) |>
+  dplyr::summarise(SWC.3 = mean(swc_shallow, na.rm = TRUE)/100, # soil water content in env_data as %
+                   SWC.6 = mean(swc_deep, na.rm = TRUE)/100) |>
+  dplyr::select(dates, SWC.3, SWC.6) |>
   dplyr::left_join(transp_data_temp2, by = 'dates') |>
   dplyr::left_join(fluxData, by = 'dates') |>
   dplyr::filter(!is.na(dates)) |>

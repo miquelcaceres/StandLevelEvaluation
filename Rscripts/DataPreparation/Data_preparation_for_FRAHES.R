@@ -118,18 +118,19 @@ miscData <- data.frame(
   ID = 'FRAHES',
   SpParamsName = "SpParamsFR",
   herbCover = 5, herbHeight = 20,
-  Validation = 'global', Definitive = 'No'
+  waterTableDepth = 1600
 )
 
 # 7. SOIL DATA ------------------------------------------------------------
 soilData <- data.frame(
-  widths = c(200, 300, 700, 2100),
-  sand = c(8, 8,8,8),
-  clay = c(25,35,45,45),
-  om = c(6,3,1,0),
-  rfc = c(9, 13, 15, 90),
-  bd = c(1.16, 1.37, 1.58, 1.58),
-  VG_theta_sat = c(0.5528318,0.5044341,0.4560364,0.4560364)
+  widths = c(200, 300, 300, 400, 2100),
+  sand = c(8, 8,8,8, 8),
+  clay = c(25,35,45,45, 45),
+  om = c(6,3,1,0,0),
+  rfc = c(9, 13, 15, 40, 90),
+  bd = c(1.16, 1.37, 1.58, 1.58, 1.58),
+  VG_theta_sat = c(0.46, 0.43, 0.38, 0.35, 0.3)
+  # VG_theta_sat = c(0.5528318,0.5044341,0.4560364,0.4560364)
 )
 s <- soil(soilData, VG_PTF = "Toth")
 sum(soil_waterExtractable(s, model="VG", minPsi = -4))
@@ -231,8 +232,12 @@ measuredData <- swc_FRAHES |>
   dplyr::mutate(dates = as.Date(ydoy.ymd(year, DOY))) |>
   dplyr::select(dates, 3:15) |>
   dplyr::mutate(
-    SWC = (`H-10` + `H-20` + `H-30`)/3) |>
-  dplyr::select(dates, SWC) |>
+    SWC.1 = (`H-10` + `H-20`)/2,
+    SWC.2 = (`H-30` + `H-40`+ `H-50`)/3,
+    SWC.3 = (`H-60` + `H-70`+ `H-80`)/3,
+    SWC.4 = (`H-90`+ `H-100`)/2,
+    SWC.5 = (`H-120` + `H-140`+ `H-160`)/3) |>
+  dplyr::select(dates, SWC.1, SWC.2, SWC.3, SWC.4, SWC.5) |>
   dplyr::full_join(transp_data_temp2, by = 'dates') |>
   dplyr::arrange(dates)
 

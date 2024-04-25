@@ -115,14 +115,14 @@ miscData <- data.frame(
 # extracted from the paper (Limousin 2009) y adaptado como Prades:
 # "bulk density" de PRADES:
 soilData <- data.frame(
-  widths = c(300, 200, 1500, 2500),
-  clay = c(39, 39, 39, 39),
-  sand = c(26, 26, 26, 26), #14
-  om = c(6, 3, 1, 1),
-  bd = c(1.45, 1.45, 1.45, 1.45),
-  rfc = c(75, 75, 80, 90),
-  VG_theta_sat = rep(0.33, 4),
-  VG_theta_res = rep(0.008, 4)
+  widths = c(100,200, 200, 1500, 2500),
+  clay = c(39, 39, 39, 39, 39),
+  sand = c(26, 26, 26, 26, 26), #14
+  om = c(6, 4, 3, 1, 1),
+  bd = c(1.45, 1.45, 1.45, 1.45, 1.45),
+  rfc = c(75, 75, 75, 80, 90),
+  VG_theta_sat = rep(0.27, 5),
+  VG_theta_res = rep(0.015, 5)
 )
 sum(soil_waterExtractable(soil(soilData), model="VG", minPsi = -4))
 
@@ -330,11 +330,11 @@ measuredData <- env_data |>
   dplyr::mutate(dates = date(as_datetime(TIMESTAMP, tz = 'Europe/Madrid')))  |>
   dplyr::select(dates, swc_shallow)  |>
   dplyr::group_by(dates)  |>
-  dplyr::summarise(SWC = mean(swc_shallow, na.rm = TRUE))  |>
+  dplyr::summarise(SWC.2 = mean(swc_shallow, na.rm = TRUE))  |>
   dplyr::left_join(transp_data_temp, by = 'dates') %>%
   dplyr::filter(dates > as.Date('2002-12-31') & dates < as.Date('2016-01-01')) %>%
-  dplyr::mutate(SWC_err = NA)  |>
-  dplyr::select(dates, SWC, SWC_err, E_QI, E_BS) |>
+  dplyr::mutate(SWC.2_err = NA)  |>
+  dplyr::select(dates, SWC.2, SWC.2_err, E_QI, E_BS) |>
   dplyr::left_join(fluxData, by="dates")|>
   dplyr::left_join(wpData, by="dates")
 
